@@ -214,12 +214,15 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     borderRadius: 999,
     borderWidth: 1,
+    maxWidth: '100%',
     paddingHorizontal: 9,
     paddingVertical: 5,
   },
   badgeText: {
+    flexShrink: 1,
     fontSize: 12,
     fontWeight: '800',
+    flexWrap: 'wrap',
   },
   button: {
     alignItems: 'center',

@@ -60,6 +60,22 @@ public record DashboardData(
     public record LogoutResponse(boolean loggedOut, String message) {
     }
 
+    public record MobileMe(
+        UserProfile user,
+        CompanyProfile company,
+        List<String> permissions
+    ) {
+    }
+
+    public record MobileBootstrap(
+        MobileMe me,
+        List<ComprovacaoResponse> tasks,
+        List<MaterialItem> materiais,
+        List<PartnerItem> parceiros,
+        List<CertificateItem> certificados
+    ) {
+    }
+
     public record PageMetadata(String key, String title, String subtitle, String section) {
     }
 
@@ -83,7 +99,10 @@ public record DashboardData(
         String dataEmissao,
         String status,
         String tipo,
-        String observacoes
+        String observacoes,
+        String evidenciaNome,
+        String evidenciaTipo,
+        String evidenciaConteudo
     ) {
     }
 
@@ -92,7 +111,10 @@ public record DashboardData(
         @NotNull @Positive Double quantidadeKg,
         @NotBlank @Size(max = 80) String tipo,
         @NotBlank @Size(max = 140) String parceiro,
-        @Size(max = 500) String observacoes
+        @Size(max = 500) String observacoes,
+        @Size(max = 120) String evidenciaNome,
+        @Size(max = 80) String evidenciaTipo,
+        @Size(max = 2_000_000) String evidenciaConteudo
     ) {
     }
 
@@ -101,6 +123,17 @@ public record DashboardData(
         @Size(max = 120) String responsavel,
         @Size(max = 180) String destino,
         @Size(max = 180) String documento,
+        @Size(max = 500) String observacoes,
+        @Size(max = 120) String evidenciaNome,
+        @Size(max = 80) String evidenciaTipo,
+        @Size(max = 2_000_000) String evidenciaConteudo
+    ) {
+    }
+
+    public record EvidenceRequest(
+        @Size(max = 120) String evidenciaNome,
+        @Size(max = 80) String evidenciaTipo,
+        @Size(max = 2_000_000) String evidenciaConteudo,
         @Size(max = 500) String observacoes
     ) {
     }
@@ -114,6 +147,15 @@ public record DashboardData(
     ) {
     }
 
+    public record GenerateReportRequest(
+        @NotBlank String tipo,
+        @NotBlank String formato,
+        @NotBlank String periodoInicio,
+        @NotBlank String periodoFim,
+        List<String> materiais
+    ) {
+    }
+
     public record VolumeItem(String mes, int plastico, int papel, int vidro, int metal) {
     }
 
@@ -123,13 +165,45 @@ public record DashboardData(
     public record ImpactMetric(String title, double value, double target, String unit) {
     }
 
-    public record MaterialItem(String material, String volume, String taxa, String situacao) {
+    public record MaterialItem(String id, String material, String volume, String taxa, String situacao) {
+    }
+
+    public record CreateMaterialRequest(
+        @NotBlank @Size(max = 120) String material,
+        @NotBlank @Size(max = 40) String volume,
+        @NotBlank @Size(max = 20) String taxa,
+        @NotBlank @Size(max = 40) String situacao
+    ) {
+    }
+
+    public record UpdateMaterialRequest(
+        @NotBlank @Size(max = 120) String material,
+        @NotBlank @Size(max = 40) String volume,
+        @NotBlank @Size(max = 20) String taxa,
+        @NotBlank @Size(max = 40) String situacao
+    ) {
     }
 
     public record PartnerItem(String parceiro, String atuacao, String status, String sla) {
     }
 
+    public record PartnerRequest(
+        @NotBlank @Size(max = 140) String parceiro,
+        @NotBlank @Size(max = 120) String atuacao,
+        @NotBlank @Size(max = 80) String status,
+        @NotBlank @Size(max = 20) String sla
+    ) {
+    }
+
     public record CertificateItem(String id, String material, String status, String data) {
+    }
+
+    public record CertificateRequest(
+        @NotBlank @Size(max = 40) String id,
+        @NotBlank @Size(max = 120) String material,
+        @NotBlank @Size(max = 80) String status,
+        @NotBlank @Size(max = 40) String data
+    ) {
     }
 
     public record ReportItem(String relatorio, String formato, String status) {
@@ -150,7 +224,10 @@ public record DashboardData(
         LocalDate dataEmissao,
         String status,
         String tipo,
-        String observacoes
+        String observacoes,
+        String evidenciaNome,
+        String evidenciaTipo,
+        String evidenciaConteudo
     ) {
     }
 }

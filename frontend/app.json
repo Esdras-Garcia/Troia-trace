@@ -9,15 +9,34 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Permitir tirar fotos das evidências de coleta, conferência, destinação e certificado.",
+        "NSPhotoLibraryUsageDescription": "Permitir selecionar imagens como evidências operacionais.",
+        "NSLocationWhenInUseUsageDescription": "Permitir registrar a localização das evidências e operações de campo."
+      }
     },
     "android": {
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "READ_MEDIA_IMAGES",
+        "READ_EXTERNAL_STORAGE"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#111827"
       }
     },
     "web": {
       "bundler": "metro"
-    }
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-camera",
+      "expo-image-picker",
+      "expo-document-picker",
+      "expo-location"
+    ]
   }
 }

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { BarChart3, Building2, Check, FileCheck, FileText, Lock, Mail, MapPin, Package, Phone, Recycle, Tag } from 'lucide-react-native';
 
-import { login, register, setAuthToken } from '../api/client';
+import { login, persistAuthToken, register } from '../api/client';
 import { Badge, Button, Card, colors, Input } from '../components/ui';
 
 export function LoginScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
@@ -63,7 +63,7 @@ export function LoginScreen({ onAuthenticated }: { onAuthenticated: () => void }
             password,
           })
         : await login({ email: email.trim(), password });
-      setAuthToken(response.token);
+      await persistAuthToken(response.token);
       onAuthenticated();
     } catch {
       setError(isRegister ? 'Não foi possível cadastrar esta empresa.' : 'E-mail ou senha inválidos.');

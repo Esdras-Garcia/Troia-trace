@@ -5,32 +5,51 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hackathon.api.dashboard.DashboardData.AppShellData;
 import com.hackathon.api.dashboard.DashboardData.CertificateItem;
+import com.hackathon.api.dashboard.DashboardData.CertificateRequest;
 import com.hackathon.api.dashboard.DashboardData.Comprovacao;
 import com.hackathon.api.dashboard.DashboardData.ComprovacaoResponse;
 import com.hackathon.api.dashboard.DashboardData.CompanyProfile;
 import com.hackathon.api.dashboard.DashboardData.CreateComprovacaoRequest;
+import com.hackathon.api.dashboard.DashboardData.CreateMaterialRequest;
 import com.hackathon.api.dashboard.DashboardData.DistributionItem;
+import com.hackathon.api.dashboard.DashboardData.EvidenceRequest;
+import com.hackathon.api.dashboard.DashboardData.GenerateReportRequest;
 import com.hackathon.api.dashboard.DashboardData.HelpItem;
 import com.hackathon.api.dashboard.DashboardData.ImpactMetric;
 import com.hackathon.api.dashboard.DashboardData.LogoutResponse;
 import com.hackathon.api.dashboard.DashboardData.MaterialItem;
+import com.hackathon.api.dashboard.DashboardData.MobileBootstrap;
+import com.hackathon.api.dashboard.DashboardData.MobileMe;
 import com.hackathon.api.dashboard.DashboardData.NotificationItem;
 import com.hackathon.api.dashboard.DashboardData.PageMetadata;
 import com.hackathon.api.dashboard.DashboardData.PartnerItem;
+import com.hackathon.api.dashboard.DashboardData.PartnerRequest;
 import com.hackathon.api.dashboard.DashboardData.ReportItem;
 import com.hackathon.api.dashboard.DashboardData.SettingItem;
 import com.hackathon.api.dashboard.DashboardData.StatItem;
+import com.hackathon.api.dashboard.DashboardData.UpdateMaterialRequest;
 import com.hackathon.api.dashboard.DashboardData.UserProfile;
 import com.hackathon.api.dashboard.DashboardData.VolumeItem;
 import com.hackathon.api.user.User;
+import com.lowagie.text.Document;
+import com.lowagie.text.Paragraph;
+import com.lowagie.text.pdf.PdfPTable;
+import com.lowagie.text.pdf.PdfWriter;
 import jakarta.annotation.PostConstruct;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HexFormat;
 import java.util.List;
@@ -133,6 +152,40 @@ public class DashboardService {
         return new LogoutResponse(true, "Sessao encerrada");
     }
 
+    MobileMe mobileMe(User user) {
+        return new MobileMe(
+            new UserProfile(user.getName(), "Operador mobile"),
+            companyProfile(user),
+            List.of(
+                "LER_QR_CODE",
+                "CONFERIR_RESIDUO",
+                "REGISTRAR_EVIDENCIA",
+                "REGISTRAR_COLETA",
+                "REGISTRAR_DESTINACAO",
+                "ENVIAR_CERTIFICADO",
+                "SINCRONIZAR_OFFLINE"
+            )
+        );
+    }
+
+    MobileBootstrap mobileBootstrap(User user) {
+        return new MobileBootstrap(
+            mobileMe(user),
+            listComprovacoes(null),
+            materiais(null),
+            parceiros(null),
+            certificados(null)
+        );
+    }
+
+    ComprovacaoResponse mobileFindByCode(String code) {
+        String normalized = normalize(code);
+        return listComprovacoes(null).stream()
+            .filter(item -> normalize(item.id()).equals(normalized) || normalize(item.hashLastro()).equals(normalized))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("Codigo mobile nao encontrado"));
+    }
+
     List<ComprovacaoResponse> listComprovacoes(String query) {
         String normalized = normalize(query);
         return readList("comprovacoes", Comprovacao.class).stream()
@@ -157,7 +210,10 @@ public class DashboardService {
             LocalDate.now(),
             "AGUARDANDO_CONFERENCIA",
             request.tipo(),
-            request.observacoes()
+            request.observacoes(),
+            request.evidenciaNome(),
+            request.evidenciaTipo(),
+            request.evidenciaConteudo()
         );
         insertSeed("comprovacoes", id, -nextNumber, comprovacao);
         return toResponse(comprovacao);
@@ -178,7 +234,10 @@ public class DashboardService {
             stored.comprovacao().dataEmissao(),
             normalizeStatus(stored.comprovacao().status()),
             request.tipo(),
-            appendHistory(request.observacoes(), "DADOS_EDITADOS")
+            appendHistory(request.observacoes(), "DADOS_EDITADOS"),
+            stored.comprovacao().evidenciaNome(),
+            stored.comprovacao().evidenciaTipo(),
+            stored.comprovacao().evidenciaConteudo()
         );
         updateSeed("comprovacoes", stored.itemKey(), updated);
         return toResponse(updated);
@@ -200,27 +259,304 @@ public class DashboardService {
             stored.comprovacao().dataEmissao(),
             nextStatus,
             stored.comprovacao().tipo(),
-            appendActionHistory(stored.comprovacao().observacoes(), nextStatus, request)
+            appendActionHistory(stored.comprovacao().observacoes(), nextStatus, request),
+            firstNonBlank(request.evidenciaNome(), stored.comprovacao().evidenciaNome()),
+            firstNonBlank(request.evidenciaTipo(), stored.comprovacao().evidenciaTipo()),
+            firstNonBlank(request.evidenciaConteudo(), stored.comprovacao().evidenciaConteudo())
+        );
+        updateSeed("comprovacoes", stored.itemKey(), updated);
+        return toResponse(updated);
+    }
+
+    ComprovacaoResponse attachEvidence(String id, EvidenceRequest request) {
+        StoredComprovacao stored = readStoredComprovacoes().stream()
+            .filter(item -> item.comprovacao().id().equals(id))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("Comprovacao nao encontrada"));
+
+        Comprovacao current = stored.comprovacao();
+        Comprovacao updated = new Comprovacao(
+            current.id(),
+            current.hashLastro(),
+            current.material(),
+            current.quantidadeKg(),
+            current.parceiro(),
+            current.dataEmissao(),
+            normalizeStatus(current.status()),
+            current.tipo(),
+            appendHistory(firstNonBlank(request.observacoes(), current.observacoes()), "EVIDENCIA_ANEXADA"),
+            firstNonBlank(request.evidenciaNome(), current.evidenciaNome()),
+            firstNonBlank(request.evidenciaTipo(), current.evidenciaTipo()),
+            firstNonBlank(request.evidenciaConteudo(), current.evidenciaConteudo())
         );
         updateSeed("comprovacoes", stored.itemKey(), updated);
         return toResponse(updated);
     }
 
     List<MaterialItem> materiais(String query) {
-        return filter(readList("materiais", MaterialItem.class), query, item -> "%s %s %s %s".formatted(item.material(), item.volume(), item.taxa(), item.situacao()));
+        return filter(readStoredMaterials().stream().map(this::materialWithId).toList(), query, item -> "%s %s %s %s".formatted(item.material(), item.volume(), item.taxa(), item.situacao()));
+    }
+
+    MaterialItem createMaterial(CreateMaterialRequest request) {
+        String id = nextMaterialId();
+        MaterialItem material = new MaterialItem(
+            id,
+            request.material().trim(),
+            request.volume().trim(),
+            request.taxa().trim(),
+            request.situacao().trim()
+        );
+        insertSeed("materiais", id, nextMaterialSortOrder(), material);
+        return material;
+    }
+
+    MaterialItem updateMaterial(String id, UpdateMaterialRequest request) {
+        StoredMaterial stored = findStoredMaterial(id)
+            .orElseThrow(() -> new IllegalArgumentException("Material nao encontrado"));
+
+        MaterialItem updated = new MaterialItem(
+            materialWithId(stored).id(),
+            request.material().trim(),
+            request.volume().trim(),
+            request.taxa().trim(),
+            request.situacao().trim()
+        );
+        updateSeed("materiais", stored.itemKey(), updated);
+        return updated;
+    }
+
+    MaterialItem deleteMaterial(String id) {
+        StoredMaterial stored = findStoredMaterial(id)
+            .orElseThrow(() -> new IllegalArgumentException("Material nao encontrado"));
+        deleteSeed("materiais", stored.itemKey());
+        return materialWithId(stored);
     }
 
     List<PartnerItem> parceiros(String query) {
         return filter(readList("parceiros", PartnerItem.class), query, item -> "%s %s %s %s".formatted(item.parceiro(), item.atuacao(), item.status(), item.sla()));
     }
 
+    PartnerItem createParceiro(PartnerRequest request) {
+        if (findStoredParceiro(request.parceiro()).isPresent()) {
+            throw new IllegalArgumentException("Parceiro ja cadastrado");
+        }
+
+        PartnerItem parceiro = toPartnerItem(request);
+        insertSeed("parceiros", partnerKey(parceiro.parceiro()), nextPartnerSortOrder(), parceiro);
+        return parceiro;
+    }
+
+    PartnerItem updateParceiro(String parceiro, PartnerRequest request) {
+        StoredPartner stored = findStoredParceiro(parceiro)
+            .orElseThrow(() -> new IllegalArgumentException("Parceiro nao encontrado"));
+        String nextKey = partnerKey(request.parceiro());
+
+        boolean nameChanged = !stored.partner().parceiro().equalsIgnoreCase(request.parceiro().trim());
+        if (nameChanged && findStoredParceiro(request.parceiro()).isPresent()) {
+            throw new IllegalArgumentException("Parceiro ja cadastrado");
+        }
+
+        PartnerItem updated = toPartnerItem(request);
+        if (stored.itemKey().equals(nextKey)) {
+            updateSeed("parceiros", stored.itemKey(), updated);
+        } else {
+            deleteSeed("parceiros", stored.itemKey());
+            insertSeed("parceiros", nextKey, stored.sortOrder(), updated);
+        }
+        return updated;
+    }
+
+    PartnerItem deleteParceiro(String parceiro) {
+        StoredPartner stored = findStoredParceiro(parceiro)
+            .orElseThrow(() -> new IllegalArgumentException("Parceiro nao encontrado"));
+        deleteSeed("parceiros", stored.itemKey());
+        return stored.partner();
+    }
+
     List<CertificateItem> certificados(String query) {
         return filter(readList("certificados", CertificateItem.class), query, item -> "%s %s %s %s".formatted(item.id(), item.material(), item.status(), item.data()));
+    }
+
+    CertificateItem createCertificado(CertificateRequest request) {
+        if (findStoredCertificate(request.id()).isPresent()) {
+            throw new IllegalArgumentException("Certificado ja cadastrado");
+        }
+
+        CertificateItem certificado = toCertificateItem(request);
+        insertSeed("certificados", certificado.id(), nextCertificateSortOrder(), certificado);
+        return certificado;
+    }
+
+    CertificateItem updateCertificado(String id, CertificateRequest request) {
+        StoredCertificate stored = findStoredCertificate(id)
+            .orElseThrow(() -> new IllegalArgumentException("Certificado nao encontrado"));
+        String nextKey = request.id().trim();
+
+        boolean idChanged = !stored.certificate().id().equalsIgnoreCase(nextKey);
+        if (idChanged && findStoredCertificate(nextKey).isPresent()) {
+            throw new IllegalArgumentException("Certificado ja cadastrado");
+        }
+
+        CertificateItem updated = toCertificateItem(request);
+        if (stored.itemKey().equals(nextKey)) {
+            updateSeed("certificados", stored.itemKey(), updated);
+        } else {
+            deleteSeed("certificados", stored.itemKey());
+            insertSeed("certificados", nextKey, stored.sortOrder(), updated);
+        }
+        return updated;
+    }
+
+    CertificateItem deleteCertificado(String id) {
+        StoredCertificate stored = findStoredCertificate(id)
+            .orElseThrow(() -> new IllegalArgumentException("Certificado nao encontrado"));
+        deleteSeed("certificados", stored.itemKey());
+        return stored.certificate();
     }
 
     List<ReportItem> relatorios(String query) {
         return filter(readList("relatorios", ReportItem.class), query, item -> "%s %s %s".formatted(item.relatorio(), item.formato(), item.status()));
     }
+
+    ReportItem generateReport(GenerateReportRequest request) {
+        String formato = normalizeReportFormat(request.formato());
+        String extension = formato.equals("PDF") ? "pdf" : "xlsx";
+        String fileName = "Relatorio_%s_%s.%s".formatted(
+            normalizeFilePart(request.tipo()),
+            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")),
+            extension
+        );
+        GenerateReportRequest normalizedRequest = new GenerateReportRequest(
+            request.tipo(),
+            formato,
+            request.periodoInicio(),
+            request.periodoFim(),
+            request.materiais()
+        );
+        ReportItem report = new ReportItem(fileName, formato.equals("PDF") ? "PDF" : "Excel", "Disponível");
+        insertSeed("relatorios", fileName, -1, report);
+        insertSeed("reportRequests", fileName, -1, normalizedRequest);
+        return report;
+    }
+
+    public byte[] exportReport(String fileName) {
+        GenerateReportRequest request = readReportRequest(fileName);
+        List<Comprovacao> data = filterReportData(readList("comprovacoes", Comprovacao.class), request);
+        
+        if (fileName.endsWith(".pdf")) {
+            return generatePdf(fileName, data);
+        } else {
+            return generateExcel(data);
+        }
+    }
+
+    private byte[] generatePdf(String title, List<Comprovacao> data) {
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Document document = new Document();
+            PdfWriter.getInstance(document, out);
+            document.open();
+            document.add(new Paragraph("TROIA TRACE - RELATORIO DE RASTREABILIDADE"));
+            document.add(new Paragraph("Arquivo: " + title));
+            document.add(new Paragraph("Data de geracao: " + LocalDate.now()));
+            document.add(new Paragraph(" "));
+
+            PdfPTable table = new PdfPTable(5);
+            table.addCell("ID");
+            table.addCell("Material");
+            table.addCell("Qtd (kg)");
+            table.addCell("Parceiro");
+            table.addCell("Status");
+
+            for (Comprovacao c : data) {
+                table.addCell(c.id());
+                table.addCell(c.material());
+                table.addCell(String.valueOf(c.quantidadeKg()));
+                table.addCell(c.parceiro());
+                table.addCell(c.status());
+            }
+
+            document.add(table);
+            document.close();
+            return out.toByteArray();
+        } catch (Exception e) {
+            return "Erro ao gerar PDF".getBytes(StandardCharsets.UTF_8);
+        }
+    }
+
+    private byte[] generateExcel(List<Comprovacao> data) {
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("Relatorio");
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("ID");
+            header.createCell(1).setCellValue("Material");
+            header.createCell(2).setCellValue("Quantidade (kg)");
+            header.createCell(3).setCellValue("Parceiro");
+            header.createCell(4).setCellValue("Status");
+            header.createCell(5).setCellValue("Data");
+            header.createCell(6).setCellValue("Hash");
+
+            int rowIdx = 1;
+            for (Comprovacao c : data) {
+                Row row = sheet.createRow(rowIdx++);
+                row.createCell(0).setCellValue(c.id());
+                row.createCell(1).setCellValue(c.material());
+                row.createCell(2).setCellValue(c.quantidadeKg());
+                row.createCell(3).setCellValue(c.parceiro());
+                row.createCell(4).setCellValue(c.status());
+                row.createCell(5).setCellValue(c.dataEmissao().toString());
+                row.createCell(6).setCellValue(c.hashLastro());
+            }
+
+            for (int index = 0; index <= 6; index++) {
+                sheet.autoSizeColumn(index);
+            }
+
+            workbook.write(out);
+            return out.toByteArray();
+        } catch (IOException e) {
+            return "Erro ao gerar Excel".getBytes(StandardCharsets.UTF_8);
+        }
+    }
+
+    private String normalizeReportFormat(String formato) {
+        String normalized = normalize(formato);
+        if (normalized.equals("pdf")) {
+            return "PDF";
+        }
+        if (normalized.equals("excel") || normalized.equals("xlsx")) {
+            return "XLSX";
+        }
+        throw new IllegalArgumentException("Formato de relatorio invalido");
+    }
+
+    private String normalizeFilePart(String value) {
+        return normalize(value).replaceAll("[^a-z0-9]+", "_").replaceAll("(^_|_$)", "");
+    }
+
+    private GenerateReportRequest readReportRequest(String fileName) {
+        return jdbc.queryForList(
+                "select payload from dashboard_seed_data where category = ? and item_key = ?",
+                String.class,
+                "reportRequests",
+                fileName
+            )
+            .stream()
+            .findFirst()
+            .map(payload -> readPayload(payload, GenerateReportRequest.class))
+            .orElse(new GenerateReportRequest("Relatorio operacional", fileName.endsWith(".pdf") ? "PDF" : "XLSX", "1900-01-01", "2999-12-31", List.of()));
+    }
+
+    private List<Comprovacao> filterReportData(List<Comprovacao> data, GenerateReportRequest request) {
+        LocalDate start = LocalDate.parse(request.periodoInicio());
+        LocalDate end = LocalDate.parse(request.periodoFim());
+        List<String> materiais = request.materiais() == null ? List.of() : request.materiais();
+
+        return data.stream()
+            .filter(item -> !item.dataEmissao().isBefore(start) && !item.dataEmissao().isAfter(end))
+            .filter(item -> materiais.isEmpty() || materiais.contains(item.material()))
+            .toList();
+    }
+
 
     List<SettingItem> configuracoes(String query) {
         return filter(readList("configuracoes", SettingItem.class), query, item -> "%s %s".formatted(item.title(), item.description()));
@@ -251,13 +587,29 @@ public class DashboardService {
     }
 
     private void refreshStaticSeedData() {
-        jdbc.update("delete from dashboard_seed_data where category <> 'comprovacoes'");
+        jdbc.update("delete from dashboard_seed_data where category <> 'comprovacoes' and category <> 'relatorios' and category <> 'reportRequests' and category <> 'parceiros' and category <> 'materiais' and category <> 'certificados'");
         jdbc.update("delete from dashboard_seed_data where category = 'comprovacoes' and item_key not like 'COMP-%'");
 
         JsonNode root = readSeedFile();
         root.fields().forEachRemaining(entry -> {
             String category = entry.getKey();
             JsonNode value = entry.getValue();
+
+            if (category.equals("relatorios") && !readList("relatorios", ReportItem.class).isEmpty()) {
+                return;
+            }
+
+            if (category.equals("parceiros") && !readList("parceiros", PartnerItem.class).isEmpty()) {
+                return;
+            }
+
+            if (category.equals("materiais") && !readList("materiais", MaterialItem.class).isEmpty()) {
+                return;
+            }
+
+            if (category.equals("certificados") && !readList("certificados", CertificateItem.class).isEmpty()) {
+                return;
+            }
 
             if (value.isArray()) {
                 int index = 1;
@@ -305,6 +657,10 @@ public class DashboardService {
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("Nao foi possivel atualizar dados do banco", exception);
         }
+    }
+
+    private void deleteSeed(String category, String itemKey) {
+        jdbc.update("delete from dashboard_seed_data where category = ? and item_key = ?", category, itemKey);
     }
 
     private <T> List<T> readList(String category, Class<T> type) {
@@ -365,7 +721,10 @@ public class DashboardService {
             DATE_FORMATTER.format(comprovacao.dataEmissao()),
             normalizeStatus(comprovacao.status()),
             comprovacao.tipo(),
-            comprovacao.observacoes()
+            comprovacao.observacoes(),
+            comprovacao.evidenciaNome(),
+            comprovacao.evidenciaTipo(),
+            comprovacao.evidenciaConteudo()
         );
     }
 
@@ -456,6 +815,134 @@ public class DashboardService {
         }
     }
 
+    private String firstNonBlank(String first, String fallback) {
+        return first == null || first.isBlank() ? fallback : first.trim();
+    }
+
+    private CertificateItem toCertificateItem(CertificateRequest request) {
+        return new CertificateItem(
+            request.id().trim(),
+            request.material().trim(),
+            request.status().trim(),
+            request.data().trim()
+        );
+    }
+
+    private java.util.Optional<StoredCertificate> findStoredCertificate(String id) {
+        String normalized = normalize(id);
+        return readStoredCertificates().stream()
+            .filter(item -> normalize(item.itemKey()).equals(normalized) || normalize(item.certificate().id()).equals(normalized))
+            .findFirst();
+    }
+
+    private List<StoredCertificate> readStoredCertificates() {
+        return jdbc.query(
+            "select item_key, sort_order, payload from dashboard_seed_data where category = ? order by sort_order, item_key",
+            (resultSet, rowNumber) -> new StoredCertificate(
+                resultSet.getString("item_key"),
+                resultSet.getInt("sort_order"),
+                readPayload(resultSet.getString("payload"), CertificateItem.class)
+            ),
+            "certificados"
+        );
+    }
+
+    private int nextCertificateSortOrder() {
+        return readStoredCertificates().stream()
+            .mapToInt(StoredCertificate::sortOrder)
+            .max()
+            .orElse(0) + 1;
+    }
+
+    private PartnerItem toPartnerItem(PartnerRequest request) {
+        return new PartnerItem(
+            request.parceiro().trim(),
+            request.atuacao().trim(),
+            request.status().trim(),
+            request.sla().trim()
+        );
+    }
+
+    private MaterialItem materialWithId(StoredMaterial stored) {
+        MaterialItem material = stored.material();
+        String id = material.id() == null || material.id().isBlank() ? stored.itemKey() : material.id();
+        return new MaterialItem(id, material.material(), material.volume(), material.taxa(), material.situacao());
+    }
+
+    private java.util.Optional<StoredMaterial> findStoredMaterial(String id) {
+        String normalized = normalize(id);
+        return readStoredMaterials().stream()
+            .filter(item -> normalize(item.itemKey()).equals(normalized) || normalize(materialWithId(item).id()).equals(normalized))
+            .findFirst();
+    }
+
+    private List<StoredMaterial> readStoredMaterials() {
+        return jdbc.query(
+            "select item_key, sort_order, payload from dashboard_seed_data where category = ? order by sort_order, item_key",
+            (resultSet, rowNumber) -> new StoredMaterial(
+                resultSet.getString("item_key"),
+                resultSet.getInt("sort_order"),
+                readPayload(resultSet.getString("payload"), MaterialItem.class)
+            ),
+            "materiais"
+        );
+    }
+
+    private int nextMaterialSortOrder() {
+        return readStoredMaterials().stream()
+            .mapToInt(StoredMaterial::sortOrder)
+            .max()
+            .orElse(0) + 1;
+    }
+
+    private String nextMaterialId() {
+        int nextNumber = readStoredMaterials().stream()
+            .map(this::materialWithId)
+            .map(MaterialItem::id)
+            .filter(id -> id != null && id.startsWith("MAT-"))
+            .mapToInt(id -> {
+                try {
+                    return Integer.parseInt(id.replace("MAT-", ""));
+                } catch (NumberFormatException exception) {
+                    return 0;
+                }
+            })
+            .max()
+            .orElse(0) + 1;
+        return "MAT-%03d".formatted(nextNumber);
+    }
+
+    private java.util.Optional<StoredPartner> findStoredParceiro(String parceiro) {
+        String normalized = normalize(parceiro);
+        return readStoredPartners().stream()
+            .filter(item -> normalize(item.partner().parceiro()).equals(normalized))
+            .findFirst();
+    }
+
+    private List<StoredPartner> readStoredPartners() {
+        return jdbc.query(
+            "select item_key, sort_order, payload from dashboard_seed_data where category = ? order by sort_order, item_key",
+            (resultSet, rowNumber) -> new StoredPartner(
+                resultSet.getString("item_key"),
+                resultSet.getInt("sort_order"),
+                readPayload(resultSet.getString("payload"), PartnerItem.class)
+            ),
+            "parceiros"
+        );
+    }
+
+    private int nextPartnerSortOrder() {
+        return readStoredPartners().stream()
+            .mapToInt(StoredPartner::sortOrder)
+            .max()
+            .orElse(0) + 1;
+    }
+
+    private String partnerKey(String parceiro) {
+        String key = normalizeFilePart(parceiro);
+        return key.isBlank() ? shortHash() : key;
+    }
+
     private int comprovacaoNumber(String id) {
         try {
             return Integer.parseInt(id.replace("COMP-", ""));
@@ -472,5 +959,14 @@ public class DashboardService {
     }
 
     private record StoredComprovacao(String itemKey, Comprovacao comprovacao) {
+    }
+
+    private record StoredMaterial(String itemKey, int sortOrder, MaterialItem material) {
+    }
+
+    private record StoredPartner(String itemKey, int sortOrder, PartnerItem partner) {
+    }
+
+    private record StoredCertificate(String itemKey, int sortOrder, CertificateItem certificate) {
     }
 }

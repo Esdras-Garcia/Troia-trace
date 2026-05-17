@@ -7,11 +7,14 @@ import {
   CheckCircle2,
   Clock,
   Copy,
+  Download,
+  Edit3,
   FileCheck,
   Leaf,
   LogOut,
   Recycle,
   Search,
+  Trash2,
   User,
   Wind,
   X,
@@ -19,14 +22,21 @@ import {
 
 import { DistributionChart, VolumeChart } from '../components/Charts';
 import { NovaComprovacaoModal } from '../components/NovaComprovacaoModal';
+import { GerarRelatorioModal } from '../components/GerarRelatorioModal';
+import { MaterialModal } from '../components/MaterialModal';
 import { Badge, Button, Card, colors, Input, Progress, SectionTitle, StatCard } from '../components/ui';
 import {
   getAjuda,
+  createCertificado,
+  createParceiro,
+  deleteCertificado,
+  deleteParceiro,
   getCertificados,
   getCompanyProfile,
   getComprovacoes,
   getConfiguracoes,
   getDashboard,
+  downloadReport,
   getMateriais,
   getNotifications,
   getParceiros,
@@ -35,21 +45,29 @@ import {
   markNotificationRead,
   updateComprovacaoStatus,
   updateComprovacao,
+  updateCertificado,
+  updateParceiro,
+  type CertificatePayload,
   type ComprovacaoAction,
   type ComprovacaoActionPayload,
+  type PartnerPayload,
   type UpdateComprovacaoPayload,
 } from '../api/client';
 import {
   bottomNavItems,
+  CertificateItem,
   Comprovacao,
   ComprovacaoStatus,
   CompanyProfile,
   DashboardData,
   emptyDashboard,
   HelpItem,
+  MaterialItem,
   NotificationItem,
   navItems,
   PageKey,
+  PartnerItem,
+  ReportItem,
   SettingItem,
 } from '../data/dashboard';
 
@@ -59,12 +77,19 @@ export function HomeScreen({ onLoggedOut }: { onLoggedOut: () => void }) {
   const [activePage, setActivePage] = useState<PageKey>('overview');
   const [query, setQuery] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [partnerModalVisible, setPartnerModalVisible] = useState(false);
+  const [materialModalVisible, setMaterialModalVisible] = useState(false);
+  const [certificateModalVisible, setCertificateModalVisible] = useState(false);
   const [dashboard, setDashboard] = useState<DashboardData>(emptyDashboard);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [editingComprovacao, setEditingComprovacao] = useState<Comprovacao | null>(null);
+  const [editingPartner, setEditingPartner] = useState<PartnerItem | null>(null);
+  const [editingMaterial, setEditingMaterial] = useState<MaterialItem | null>(null);
+  const [editingCertificate, setEditingCertificate] = useState<CertificateItem | null>(null);
   const [focusedComprovacaoId, setFocusedComprovacaoId] = useState('');
   const [loggedOut, setLoggedOut] = useState(false);
   const { width } = useWindowDimensions();
@@ -152,6 +177,10 @@ export function HomeScreen({ onLoggedOut }: { onLoggedOut: () => void }) {
   const pageMetadata = dashboard.shell.pages.find((item) => item.key === activePage);
   const pageTitle = displayText(pageMetadata?.title ?? [...navItems, ...bottomNavItems].find((item) => item.key === activePage)?.title ?? 'Visão Geral');
   const canCreateComprovacao = activePage === 'comprovacoes';
+  const canGenerateReport = activePage === 'relatorios';
+  const canCreatePartner = activePage === 'parceiros';
+  const canCreateMaterial = activePage === 'materiais';
+  const canCreateCertificate = activePage === 'certificados';
   const unreadNotifications = notifications.filter((item) => !item.read).length || dashboard.shell.notificationsCount;
 
   async function openNotifications() {
@@ -216,6 +245,98 @@ export function HomeScreen({ onLoggedOut }: { onLoggedOut: () => void }) {
     setFocusedComprovacaoId(comprovacao.id);
   }
 
+  function handleReportGenerated(report: ReportItem) {
+    setDashboard((current) => ({
+      ...current,
+      relatorios: [report, ...current.relatorios],
+    }));
+  }
+
+  async function handleSavePartner(payload: PartnerPayload) {
+    const saved = editingPartner
+      ? await updateParceiro(editingPartner.parceiro, payload)
+      : await createParceiro(payload);
+
+    setDashboard((current) => ({
+      ...current,
+      parceiros: editingPartner
+        ? current.parceiros.map((item) => (item.parceiro === editingPartner.parceiro ? saved : item))
+        : [saved, ...current.parceiros],
+    }));
+    setEditingPartner(null);
+    setPartnerModalVisible(false);
+  }
+
+  async function handleDeletePartner(parceiro: string) {
+    await deleteParceiro(parceiro);
+    setDashboard((current) => ({
+      ...current,
+      parceiros: current.parceiros.filter((item) => item.parceiro !== parceiro),
+    }));
+  }
+
+  function openPartnerModal(partner?: PartnerItem) {
+    setEditingPartner(partner ?? null);
+    setPartnerModalVisible(true);
+  }
+
+  function openMaterialModal(material?: MaterialItem) {
+    setEditingMaterial(material ?? null);
+    setMaterialModalVisible(true);
+  }
+
+  function handleMaterialSaved(material: MaterialItem) {
+    setDashboard((current) => {
+      const exists = current.materiais.some((item) => item.id === material.id);
+      return {
+        ...current,
+        materiais: exists
+          ? current.materiais.map((item) => (item.id === material.id ? material : item))
+          : [material, ...current.materiais],
+      };
+    });
+    setEditingMaterial(null);
+  }
+
+  function handleMaterialDeleted(id: string) {
+    setDashboard((current) => ({
+      ...current,
+      materiais: current.materiais.filter((item) => item.id !== id),
+    }));
+    setEditingMaterial(null);
+  }
+
+  async function handleSaveCertificate(payload: CertificatePayload) {
+    const saved = editingCertificate
+      ? await updateCertificado(editingCertificate.id, payload)
+      : await createCertificado(payload);
+
+    setDashboard((current) => {
+      const exists = current.certificados.some((item) => item.id === editingCertificate?.id);
+      return {
+        ...current,
+        certificados: exists
+          ? current.certificados.map((item) => (item.id === editingCertificate?.id ? saved : item))
+          : [saved, ...current.certificados],
+      };
+    });
+    setEditingCertificate(null);
+    setCertificateModalVisible(false);
+  }
+
+  async function handleDeleteCertificate(id: string) {
+    await deleteCertificado(id);
+    setDashboard((current) => ({
+      ...current,
+      certificados: current.certificados.filter((item) => item.id !== id),
+    }));
+  }
+
+  function openCertificateModal(certificate?: CertificateItem) {
+    setEditingCertificate(certificate ?? null);
+    setCertificateModalVisible(true);
+  }
+
   if (loggedOut) {
     return (
       <View style={styles.logoutScreen}>
@@ -237,6 +358,41 @@ export function HomeScreen({ onLoggedOut }: { onLoggedOut: () => void }) {
         onClose={() => setModalVisible(false)}
         onCreated={(comprovacao) => setDashboard((current) => ({ ...current, comprovacoes: [comprovacao, ...current.comprovacoes] }))}
         onViewCreated={handleViewCreatedComprovacao}
+      />
+      <GerarRelatorioModal
+        visible={reportModalVisible}
+        materiais={dashboard.materiais}
+        onClose={() => setReportModalVisible(false)}
+        onGenerated={handleReportGenerated}
+      />
+      <PartnerModal
+        visible={partnerModalVisible}
+        partner={editingPartner}
+        onClose={() => {
+          setPartnerModalVisible(false);
+          setEditingPartner(null);
+        }}
+        onSave={handleSavePartner}
+      />
+      <MaterialModal
+        visible={materialModalVisible}
+        material={editingMaterial}
+        onClose={() => {
+          setMaterialModalVisible(false);
+          setEditingMaterial(null);
+        }}
+        onSaved={handleMaterialSaved}
+        onDeleted={handleMaterialDeleted}
+      />
+      <CertificateModal
+        visible={certificateModalVisible}
+        certificate={editingCertificate}
+        materiais={dashboard.materiais}
+        onClose={() => {
+          setCertificateModalVisible(false);
+          setEditingCertificate(null);
+        }}
+        onSave={handleSaveCertificate}
       />
       {editingComprovacao ? (
         <EditComprovacaoModal
@@ -286,6 +442,26 @@ export function HomeScreen({ onLoggedOut }: { onLoggedOut: () => void }) {
                   <Text style={styles.buttonInline}>+ Nova Comprovação</Text>
                 </Button>
               ) : null}
+              {canGenerateReport ? (
+                <Button onPress={() => setReportModalVisible(true)}>
+                  <Text style={styles.buttonInline}>+ Gerar Relatório</Text>
+                </Button>
+              ) : null}
+              {canCreatePartner ? (
+                <Button onPress={() => openPartnerModal()}>
+                  <Text style={styles.buttonInline}>+ Novo Parceiro</Text>
+                </Button>
+              ) : null}
+              {canCreateMaterial ? (
+                <Button onPress={() => openMaterialModal()}>
+                  <Text style={styles.buttonInline}>+ Novo Material</Text>
+                </Button>
+              ) : null}
+              {canCreateCertificate ? (
+                <Button onPress={() => openCertificateModal()}>
+                  <Text style={styles.buttonInline}>+ Novo Certificado</Text>
+                </Button>
+              ) : null}
             </View>
           </View>
           <PageContent
@@ -297,6 +473,11 @@ export function HomeScreen({ onLoggedOut }: { onLoggedOut: () => void }) {
             onComprovacaoAction={handleComprovacaoAction}
             onEditComprovacao={setEditingComprovacao}
             focusedComprovacaoId={focusedComprovacaoId}
+            onEditPartner={openPartnerModal}
+            onDeletePartner={handleDeletePartner}
+            onEditMaterial={openMaterialModal}
+            onEditCertificate={openCertificateModal}
+            onDeleteCertificate={handleDeleteCertificate}
           />
         </ScrollView>
       </View>
@@ -531,6 +712,11 @@ function PageContent({
   onComprovacaoAction,
   onEditComprovacao,
   focusedComprovacaoId,
+  onEditPartner,
+  onDeletePartner,
+  onEditMaterial,
+  onEditCertificate,
+  onDeleteCertificate,
 }: {
   activePage: PageKey;
   query: string;
@@ -540,6 +726,11 @@ function PageContent({
   onComprovacaoAction: (id: string, action: ComprovacaoAction, payload?: ComprovacaoActionPayload) => Promise<void>;
   onEditComprovacao: (comprovacao: Comprovacao) => void;
   focusedComprovacaoId: string;
+  onEditPartner: (partner: PartnerItem) => void;
+  onDeletePartner: (parceiro: string) => Promise<void>;
+  onEditMaterial: (material: MaterialItem) => void;
+  onEditCertificate: (certificate: CertificateItem) => void;
+  onDeleteCertificate: (id: string) => Promise<void>;
 }) {
   if (activePage === 'overview') {
     return <OverviewPage query={query} isWide={isWide} dashboard={dashboard} />;
@@ -557,37 +748,33 @@ function PageContent({
   }
   if (activePage === 'materiais') {
     return (
-      <SimpleListPage
-        data={dashboard.materiais.map((item) => [item.material, item.volume, item.taxa, item.situacao])}
-        title="Materiais monitorados"
-        columns={['Material', 'Volume', 'Taxa', 'Situação']}
+      <MaterialsPage
+        materiais={dashboard.materiais}
+        query={query}
+        onEdit={onEditMaterial}
       />
     );
   }
   if (activePage === 'relatorios') {
-    return (
-      <SimpleListPage
-        data={dashboard.relatorios.map((item) => [item.relatorio, item.formato, item.status])}
-        title="Relatórios disponíveis"
-        columns={['Relatório', 'Formato', 'Status']}
-      />
-    );
+    return <ReportsPage relatorios={dashboard.relatorios} />;
   }
   if (activePage === 'parceiros') {
     return (
-      <SimpleListPage
-        data={dashboard.parceiros.map((item) => [item.parceiro, item.atuacao, item.status, item.sla])}
-        title="Rede de parceiros"
-        columns={['Parceiro', 'Atuação', 'Status', 'SLA']}
+      <PartnersPage
+        parceiros={dashboard.parceiros}
+        query={query}
+        onEdit={onEditPartner}
+        onDelete={onDeletePartner}
       />
     );
   }
   if (activePage === 'certificados') {
     return (
-      <SimpleListPage
-        data={dashboard.certificados.map((item) => [item.id, item.material, item.status, item.data])}
-        title="Certificados e laudos"
-        columns={['ID', 'Material', 'Status', 'Data']}
+      <CertificatesPage
+        certificados={dashboard.certificados}
+        query={query}
+        onEdit={onEditCertificate}
+        onDelete={onDeleteCertificate}
       />
     );
   }
@@ -890,49 +1077,63 @@ function ComprovacaoRow({
   return (
     <>
       <View style={[styles.tableRow, focused && styles.tableRowFocused]}>
-        <View style={styles.tableMain}>
-          <Text style={styles.tableId}>{item.id}</Text>
-          <Text style={styles.tableSub}>{displayText(item.material)} • {displayText(item.tipo)}</Text>
-          {!compact ? <Text style={styles.tableSub}>Próxima etapa: {nextStepLabel(item.status)}</Text> : null}
-          {!compact && lastHistoryEntry ? (
-            <Text style={styles.tableHistory} numberOfLines={2}>
-              Último registro: {lastHistoryEntry}
-            </Text>
-          ) : null}
-        </View>
-        {!compact ? (
-          <View style={styles.hashPill}>
-            <Text style={styles.hashText}>{item.hashLastro}</Text>
-            <Copy color={colors.muted} size={13} />
+        <View style={styles.rowMainSection}>
+          <View style={styles.tableMain}>
+            <Text style={styles.tableId}>{item.id}</Text>
+            <Text style={styles.tableSub}>{displayText(item.material)} • {displayText(item.tipo)}</Text>
+            {!compact ? <Text style={styles.tableSub}>Próxima etapa: {nextStepLabel(item.status)}</Text> : null}
           </View>
-        ) : null}
-        <Text style={styles.tableValue}>{item.quantidade}</Text>
-        <Text style={styles.tablePartner}>{item.parceiro}</Text>
-        <StatusBadge status={item.status} />
-        {!compact && onAction ? (
-          <View style={styles.flowActions}>
-            <Text style={styles.flowActionsLabel}>Ações do ciclo</Text>
-            {onEdit ? (
-              <Button
-                variant="outline"
-                style={styles.flowActionButton}
-                textStyle={styles.flowActionText}
-                onPress={() => onEdit(item)}
-              >
-                Editar
-              </Button>
+
+          <View style={styles.rowDetailsSection}>
+            {!compact ? (
+              <View style={styles.hashPill}>
+                <Text style={styles.hashText}>{item.hashLastro}</Text>
+                <Copy color={colors.muted} size={13} />
+              </View>
             ) : null}
-            {actions.map((action) => (
-              <Button
-                key={action.action}
-                variant={action.variant}
-                style={styles.flowActionButton}
-                textStyle={styles.flowActionText}
-                onPress={() => setPendingAction(action)}
-              >
-                {submittingAction === action.action ? 'Aguarde...' : action.label}
-              </Button>
-            ))}
+            <View style={styles.rowMetaInfo}>
+              <Text style={styles.tableValue}>{item.quantidade}</Text>
+              <Text style={styles.tablePartner}>{item.parceiro}</Text>
+            </View>
+            <StatusBadge status={item.status} />
+          </View>
+        </View>
+
+        {!compact && (lastHistoryEntry || onAction) ? (
+          <View style={styles.rowActionsSection}>
+            {!compact && lastHistoryEntry ? (
+              <Text style={styles.tableHistory} numberOfLines={2}>
+                Último registro: {lastHistoryEntry}
+              </Text>
+            ) : null}
+            {!compact && onAction ? (
+              <View style={styles.flowActions}>
+                <Text style={styles.flowActionsLabel}>Ações do ciclo</Text>
+                <View style={styles.flowActionsGrid}>
+                  {onEdit ? (
+                    <Button
+                      variant="outline"
+                      style={styles.flowActionButton}
+                      textStyle={styles.flowActionText}
+                      onPress={() => onEdit(item)}
+                    >
+                      Editar
+                    </Button>
+                  ) : null}
+                  {actions.map((action) => (
+                    <Button
+                      key={action.action}
+                      variant={action.variant}
+                      style={styles.flowActionButton}
+                      textStyle={styles.flowActionText}
+                      onPress={() => setPendingAction(action)}
+                    >
+                      {submittingAction === action.action ? 'Aguarde...' : action.label}
+                    </Button>
+                  ))}
+                </View>
+              </View>
+            ) : null}
           </View>
         ) : null}
       </View>
@@ -981,6 +1182,7 @@ function ComprovacaoActionModal({
   const [destino, setDestino] = useState('');
   const [documento, setDocumento] = useState('');
   const [observacoes, setObservacoes] = useState('');
+  const [evidencia, setEvidencia] = useState<EvidenceFile | null>(null);
 
   async function submit() {
     if (submitting) {
@@ -992,6 +1194,9 @@ function ComprovacaoActionModal({
       destino: destino.trim(),
       documento: documento.trim(),
       observacoes: observacoes.trim(),
+      evidenciaNome: evidencia?.nome,
+      evidenciaTipo: evidencia?.tipo,
+      evidenciaConteudo: evidencia?.conteudo,
     });
   }
 
@@ -1035,6 +1240,9 @@ function ComprovacaoActionModal({
                   maxLength={180}
                   placeholder={config.document}
                 />
+                <Pressable style={styles.evidenceButton} onPress={() => pickEvidence(setEvidencia)}>
+                  <Text style={styles.iconActionText}>{evidencia ? evidencia.nome : 'Anexar documento ou imagem'}</Text>
+                </Pressable>
               </View>
             ) : null}
             <View style={styles.editField}>
@@ -1073,7 +1281,7 @@ function EditComprovacaoModal({
   onClose: () => void;
   onSave: (id: string, payload: UpdateComprovacaoPayload) => Promise<void>;
 }) {
-  const materialOptions = uniqueValues(materiais.map((item) => item.material));
+  const materialOptions = useMemo(() => uniqueValues(materiais.map((item) => item.material)), [materiais]);
   const parceiroOptions = uniqueValues(parceiros.map((item) => item.parceiro));
   const [material, setMaterial] = useState(comprovacao.material || materialOptions[0] || '');
   const [quantidadeKg, setQuantidadeKg] = useState(formatEditableQuantity(comprovacao.quantidade));
@@ -1395,26 +1603,467 @@ function RecentActivity({ activities }: { activities: string[] }) {
   );
 }
 
-function SimpleListPage({ title, columns, data }: { title: string; columns: string[]; data: string[][] }) {
+function MaterialsPage({
+  materiais,
+  query,
+  onEdit,
+}: {
+  materiais: MaterialItem[];
+  query: string;
+  onEdit: (material: MaterialItem) => void;
+}) {
+  const filtered = useMemo(
+    () =>
+      materiais.filter((item) =>
+        normalizeSearch(`${item.material} ${item.volume} ${item.taxa} ${item.situacao}`).includes(normalizeSearch(query)),
+      ),
+    [materiais, query],
+  );
+
   return (
     <View style={styles.stack}>
       <Card>
         <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>{displayText(title)}</Text>
+          <Text style={styles.cardTitle}>Materiais monitorados</Text>
+          <Badge tone="primary">{filtered.length} cadastrados</Badge>
+        </View>
+        <View style={styles.listHeader}>
+          {['Material', 'Volume', 'Taxa', 'Situação', 'Ações'].map((column) => (
+            <Text key={column} style={styles.listHeaderText}>{column}</Text>
+          ))}
+        </View>
+        {filtered.map((item) => (
+          <View key={item.id} style={styles.listRow}>
+            <Text style={[styles.listCell, styles.listCellStrong]}>{displayText(item.material)}</Text>
+            <Text style={styles.listCell}>{item.volume}</Text>
+            <Text style={styles.listCell}>{item.taxa}</Text>
+            <Text style={styles.listCell}>{displayText(item.situacao)}</Text>
+            <View style={[styles.listCell, styles.partnerActions]}>
+              <Pressable style={styles.iconActionButton} onPress={() => onEdit(item)}>
+                <Edit3 color={colors.text} size={16} />
+                <Text style={styles.iconActionText}>Editar</Text>
+              </Pressable>
+            </View>
+          </View>
+        ))}
+        {filtered.length === 0 ? <Text style={styles.emptyText}>Nenhum material encontrado.</Text> : null}
+      </Card>
+    </View>
+  );
+}
+
+function CertificatesPage({
+  certificados,
+  query,
+  onEdit,
+  onDelete,
+}: {
+  certificados: CertificateItem[];
+  query: string;
+  onEdit: (certificate: CertificateItem) => void;
+  onDelete: (id: string) => Promise<void>;
+}) {
+  const [deleting, setDeleting] = useState('');
+  const filtered = useMemo(
+    () =>
+      certificados.filter((item) =>
+        normalizeSearch(`${item.id} ${item.material} ${item.status} ${item.data}`).includes(normalizeSearch(query)),
+      ),
+    [certificados, query],
+  );
+
+  async function remove(certificate: CertificateItem) {
+    const confirmed = Platform.OS === 'web' ? window.confirm(`Remover ${certificate.id}?`) : true;
+    if (!confirmed) return;
+
+    setDeleting(certificate.id);
+    try {
+      await onDelete(certificate.id);
+    } finally {
+      setDeleting('');
+    }
+  }
+
+  return (
+    <View style={styles.stack}>
+      <Card>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>Certificados e laudos</Text>
+          <Badge tone="primary">{filtered.length} cadastrados</Badge>
+        </View>
+        <View style={styles.listHeader}>
+          {['ID', 'Material', 'Status', 'Data', 'Ações'].map((column) => (
+            <Text key={column} style={styles.listHeaderText}>{column}</Text>
+          ))}
+        </View>
+        {filtered.map((item) => (
+          <View key={item.id} style={styles.listRow}>
+            <Text style={[styles.listCell, styles.listCellStrong]}>{item.id}</Text>
+            <Text style={styles.listCell}>{displayText(item.material)}</Text>
+            <Text style={styles.listCell}>{displayText(item.status)}</Text>
+            <Text style={styles.listCell}>{displayText(item.data)}</Text>
+            <View style={[styles.listCell, styles.partnerActions]}>
+              <Pressable style={styles.iconActionButton} onPress={() => onEdit(item)}>
+                <Edit3 color={colors.text} size={16} />
+                <Text style={styles.iconActionText}>Editar</Text>
+              </Pressable>
+              <Pressable style={[styles.iconActionButton, styles.dangerActionButton]} onPress={() => remove(item)}>
+                <Trash2 color={colors.danger} size={16} />
+                <Text style={[styles.iconActionText, styles.dangerActionText]}>
+                  {deleting === item.id ? 'Removendo...' : 'Excluir'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        ))}
+        {filtered.length === 0 ? <Text style={styles.emptyText}>Nenhum certificado encontrado.</Text> : null}
+      </Card>
+    </View>
+  );
+}
+
+function CertificateModal({
+  visible,
+  certificate,
+  materiais,
+  onClose,
+  onSave,
+}: {
+  visible: boolean;
+  certificate: CertificateItem | null;
+  materiais: MaterialItem[];
+  onClose: () => void;
+  onSave: (payload: CertificatePayload) => Promise<void>;
+}) {
+  const materialOptions = useMemo(() => uniqueValues(materiais.map((item) => item.material)), [materiais]);
+  const [id, setId] = useState('');
+  const [material, setMaterial] = useState('');
+  const [status, setStatus] = useState('Em análise');
+  const [data, setData] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!visible) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setId(limitText(certificate?.id ?? nextCertificateId(), 40));
+    setMaterial(certificate?.material ?? materialOptions[0] ?? '');
+    setStatus(certificate?.status ?? 'Em análise');
+    setData(limitText(certificate?.data ?? currentDisplayDate(), 40));
+  }, [certificate, materialOptions, visible]);
+
+  async function submit() {
+    if (!id.trim() || !material.trim() || !status.trim() || !data.trim()) return;
+    setSubmitting(true);
+    try {
+      await onSave({
+        id: limitText(id, 40).trim(),
+        material: limitText(material, 120).trim(),
+        status,
+        data: limitText(data, 40).trim(),
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
+      <View style={styles.overlay}>
+        <Card style={styles.editModal}>
+          <View style={styles.modalHeader}>
+            <View>
+              <Text style={styles.cardTitle}>{certificate ? 'Editar certificado' : 'Novo certificado'}</Text>
+              <Text style={styles.modalSubtitle}>Registre laudos, certificados e aprovações vinculados aos materiais.</Text>
+            </View>
+            <Pressable style={styles.closeButton} onPress={onClose}>
+              <X color={colors.text} size={18} />
+            </Pressable>
+          </View>
+
+          <View style={styles.editForm}>
+            <View style={styles.editField}>
+              <Text style={styles.profileLabel}>Código</Text>
+              <Input value={id} onChangeText={(value) => setId(limitText(value.toUpperCase(), 40))} maxLength={40} placeholder="CERT-0001" />
+            </View>
+            <View style={styles.editField}>
+              <Text style={styles.profileLabel}>Material</Text>
+              <EditOptionSelect options={materialOptions} value={material} onChange={setMaterial} />
+            </View>
+            <View style={styles.editField}>
+              <Text style={styles.profileLabel}>Status</Text>
+              <EditOptionSelect options={['Aprovado', 'Em análise', 'Rejeitado', 'Vencido']} value={status} onChange={setStatus} />
+            </View>
+            <View style={styles.editField}>
+              <Text style={styles.profileLabel}>Data</Text>
+              <Input value={data} onChangeText={(value) => setData(limitText(value, 40))} maxLength={40} placeholder="17 Mai 2026" />
+            </View>
+            <View style={styles.editActions}>
+              <Button variant="outline" onPress={onClose}>Cancelar</Button>
+              <Button onPress={submit}>{submitting ? 'Salvando...' : 'Salvar certificado'}</Button>
+            </View>
+          </View>
+        </Card>
+      </View>
+    </Modal>
+  );
+}
+
+function PartnersPage({
+  parceiros,
+  query,
+  onEdit,
+  onDelete,
+}: {
+  parceiros: PartnerItem[];
+  query: string;
+  onEdit: (partner: PartnerItem) => void;
+  onDelete: (parceiro: string) => Promise<void>;
+}) {
+  const [deleting, setDeleting] = useState('');
+  const filtered = useMemo(
+    () =>
+      parceiros.filter((item) =>
+        normalizeSearch(`${item.parceiro} ${item.atuacao} ${item.status} ${item.sla}`).includes(normalizeSearch(query)),
+      ),
+    [parceiros, query],
+  );
+
+  async function remove(partner: PartnerItem) {
+    const confirmed = Platform.OS === 'web' ? window.confirm(`Remover ${partner.parceiro}?`) : true;
+    if (!confirmed) return;
+
+    setDeleting(partner.parceiro);
+    try {
+      await onDelete(partner.parceiro);
+    } finally {
+      setDeleting('');
+    }
+  }
+
+  return (
+    <View style={styles.stack}>
+      <Card>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>Rede de parceiros</Text>
+          <Badge tone="primary">{filtered.length} cadastrados</Badge>
+        </View>
+        <View style={styles.listHeader}>
+          {['Parceiro', 'Atuação', 'Status', 'SLA', 'Ações'].map((column) => (
+            <Text key={column} style={styles.listHeaderText}>{column}</Text>
+          ))}
+        </View>
+        {filtered.map((item) => (
+          <View key={item.parceiro} style={styles.listRow}>
+            <Text style={[styles.listCell, styles.listCellStrong]}>{displayText(item.parceiro)}</Text>
+            <Text style={styles.listCell}>{displayText(item.atuacao)}</Text>
+            <Text style={styles.listCell}>{displayText(item.status)}</Text>
+            <Text style={styles.listCell}>{item.sla}</Text>
+            <View style={[styles.listCell, styles.partnerActions]}>
+              <Pressable style={styles.iconActionButton} onPress={() => onEdit(item)}>
+                <Edit3 color={colors.text} size={16} />
+                <Text style={styles.iconActionText}>Editar</Text>
+              </Pressable>
+              <Pressable style={[styles.iconActionButton, styles.dangerActionButton]} onPress={() => remove(item)}>
+                <Trash2 color={colors.danger} size={16} />
+                <Text style={[styles.iconActionText, styles.dangerActionText]}>
+                  {deleting === item.parceiro ? 'Removendo...' : 'Excluir'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        ))}
+        {filtered.length === 0 ? <Text style={styles.emptyText}>Nenhum parceiro encontrado.</Text> : null}
+      </Card>
+    </View>
+  );
+}
+
+function PartnerModal({
+  visible,
+  partner,
+  onClose,
+  onSave,
+}: {
+  visible: boolean;
+  partner: PartnerItem | null;
+  onClose: () => void;
+  onSave: (payload: PartnerPayload) => Promise<void>;
+}) {
+  const [parceiro, setParceiro] = useState('');
+  const [atuacao, setAtuacao] = useState('');
+  const [status, setStatus] = useState('Homologado');
+  const [sla, setSla] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!visible) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setParceiro(limitText(partner?.parceiro ?? '', 140));
+    setAtuacao(limitText(partner?.atuacao ?? '', 120));
+    setStatus(partner?.status ?? 'Homologado');
+    setSla(formatPercent(partner?.sla ?? ''));
+  }, [partner, visible]);
+
+  async function submit() {
+    if (!parceiro.trim() || !atuacao.trim() || !status.trim() || !sla.trim()) return;
+    setSubmitting(true);
+    try {
+      await onSave({
+        parceiro: limitText(parceiro, 140).trim(),
+        atuacao: limitText(atuacao, 120).trim(),
+        status,
+        sla: formatPercent(sla),
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
+      <View style={styles.overlay}>
+        <Card style={styles.editModal}>
+          <View style={styles.modalHeader}>
+            <View>
+              <Text style={styles.cardTitle}>{partner ? 'Editar parceiro' : 'Novo parceiro'}</Text>
+              <Text style={styles.modalSubtitle}>Cadastre responsáveis usados na rastreabilidade e nas comprovações.</Text>
+            </View>
+            <Pressable style={styles.closeButton} onPress={onClose}>
+              <X color={colors.text} size={18} />
+            </Pressable>
+          </View>
+
+          <View style={styles.editForm}>
+            <View style={styles.editField}>
+              <Text style={styles.profileLabel}>Nome do parceiro</Text>
+              <Input
+                value={parceiro}
+                onChangeText={(value) => setParceiro(limitText(value, 140))}
+                placeholder="Ex.: Cooperativa Verde"
+                maxLength={140}
+              />
+            </View>
+            <View style={styles.editField}>
+              <Text style={styles.profileLabel}>Atuação</Text>
+              <Input
+                value={atuacao}
+                onChangeText={(value) => setAtuacao(limitText(value, 120))}
+                placeholder="Ex.: Coleta e triagem"
+                maxLength={120}
+              />
+            </View>
+            <View style={styles.editField}>
+              <Text style={styles.profileLabel}>Status</Text>
+              <EditOptionSelect
+                options={['Homologado', 'Pendente', 'Documento vencido', 'Inativo']}
+                value={status}
+                onChange={setStatus}
+              />
+            </View>
+            <View style={styles.editField}>
+              <Text style={styles.profileLabel}>SLA</Text>
+              <Input
+                value={sla}
+                onChangeText={(value) => setSla(formatPercent(value))}
+                placeholder="Ex.: 96%"
+                keyboardType="number-pad"
+                maxLength={4}
+              />
+            </View>
+            <View style={styles.editActions}>
+              <Button variant="outline" onPress={onClose}>Cancelar</Button>
+              <Button onPress={submit}>{submitting ? 'Salvando...' : 'Salvar parceiro'}</Button>
+            </View>
+          </View>
+        </Card>
+      </View>
+    </Modal>
+  );
+}
+
+function limitText(value: string, maxLength: number) {
+  return value.slice(0, maxLength);
+}
+
+function formatPercent(value: string) {
+  const digits = value.replace(/\D/g, '').slice(0, 3);
+  if (!digits) return '';
+  return `${Math.min(Number(digits), 100)}%`;
+}
+
+type EvidenceFile = {
+  nome: string;
+  tipo: string;
+  conteudo: string;
+};
+
+function pickEvidence(onSelected: (file: EvidenceFile) => void) {
+  if (Platform.OS !== 'web' || typeof document === 'undefined') {
+    return;
+  }
+
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*,application/pdf';
+  input.onchange = () => {
+    const file = input.files?.[0];
+    if (!file || file.size > 1_500_000) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result ?? '');
+      onSelected({
+        nome: file.name.slice(0, 120),
+        tipo: file.type || 'application/octet-stream',
+        conteudo: result.split(',')[1] ?? result,
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+
+function currentDisplayDate() {
+  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+    .format(new Date())
+    .replace('.', '');
+}
+
+function nextCertificateId() {
+  return `CERT-${Math.floor(1000 + Math.random() * 9000)}`;
+}
+
+function ReportsPage({ relatorios }: { relatorios: ReportItem[] }) {
+  return (
+    <View style={styles.stack}>
+      <Card>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>Relatórios disponíveis</Text>
           <Badge tone="primary">Atualizado</Badge>
         </View>
         <View style={styles.listHeader}>
-          {columns.map((column) => (
-            <Text key={column} style={styles.listHeaderText}>{displayText(column)}</Text>
-          ))}
+          <Text style={styles.listHeaderText}>Relatório</Text>
+          <Text style={styles.listHeaderText}>Formato</Text>
+          <Text style={styles.listHeaderText}>Status</Text>
+          <Text style={[styles.listHeaderText, { textAlign: 'right' }]}>Ações</Text>
         </View>
-        {data.map((row) => (
-          <View key={row.join('-')} style={styles.listRow}>
-            {row.map((cell, index) => (
-              <Text key={cell} style={[styles.listCell, index === 0 && styles.listCellStrong]}>{displayText(cell)}</Text>
-            ))}
+        {relatorios.map((item) => (
+          <View key={item.relatorio} style={styles.listRow}>
+            <Text style={[styles.listCell, styles.listCellStrong]}>{item.relatorio}</Text>
+            <Text style={styles.listCell}>{item.formato}</Text>
+            <Text style={styles.listCell}>{item.status}</Text>
+            <View style={{ flex: 1, alignItems: 'flex-end' }}>
+              <Button 
+                variant="ghost" 
+                style={styles.flowActionButton}
+                onPress={() => downloadReport(item.relatorio)}
+              >
+                <Download color={colors.primary} size={16} />
+              </Button>
+            </View>
           </View>
         ))}
+        {relatorios.length === 0 ? <Text style={styles.emptyText}>Nenhum relatório gerado.</Text> : null}
       </Card>
     </View>
   );
@@ -1470,7 +2119,7 @@ const textCorrections: Record<string, string> = {
   'Comprovacoes Ativas': 'Comprovações Ativas',
   Configuracoes: 'Configurações',
   'Configuracao operacional para validar comprovacoes e certificados.': 'Configuração operacional para validar comprovações e certificados.',
-  'Consulte e registre operacoes com hash de lastro.': 'Consulte e registre operações com hash de lastro.',
+  'Consulte e registre operacoes with hash de lastro.': 'Consulte e registre operações com hash de lastro.',
   'Controle volumes, categorias e eficiencia por material.': 'Controle volumes, categorias e eficiência por material.',
   'Destinacao': 'Destinação',
   'Divergencias abertas': 'Divergências abertas',
@@ -1899,16 +2548,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   tableRow: {
-    alignItems: 'center',
     backgroundColor: colors.cardSoft,
     borderColor: colors.border,
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 12,
-    justifyContent: 'space-between',
-    padding: 12,
+    padding: 16,
   },
   tableRowFocused: {
     borderColor: colors.primary,
@@ -1916,13 +2561,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 12,
   },
+  rowMainSection: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+    justifyContent: 'space-between',
+  },
   tableMain: {
-    flex: 1.4,
-    minWidth: 130,
+    flex: 1,
+    minWidth: 200,
   },
   tableId: {
     color: colors.text,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '900',
   },
   tableSub: {
@@ -1930,11 +2582,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 3,
   },
-  tableHistory: {
-    color: colors.text,
-    fontSize: 11,
-    lineHeight: 15,
-    marginTop: 6,
+  rowDetailsSection: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
   },
   hashPill: {
     alignItems: 'center',
@@ -1948,41 +2600,57 @@ const styles = StyleSheet.create({
   hashText: {
     color: colors.muted,
     fontFamily: 'monospace',
-    fontSize: 12,
+    fontSize: 11,
+  },
+  rowMetaInfo: {
+    alignItems: 'flex-end',
+    gap: 2,
+    minWidth: 100,
   },
   tableValue: {
     color: colors.text,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '900',
-    minWidth: 74,
   },
   tablePartner: {
     color: colors.muted,
-    fontSize: 13,
-    minWidth: 120,
+    fontSize: 12,
+  },
+  rowActionsSection: {
+    borderTopColor: `${colors.border}44`,
+    borderTopWidth: 1,
+    gap: 12,
+    marginTop: 4,
+    paddingTop: 12,
+  },
+  tableHistory: {
+    color: colors.muted,
+    fontSize: 11,
+    fontStyle: 'italic',
+    lineHeight: 16,
   },
   flowActions: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
-    justifyContent: 'flex-end',
-    minWidth: 260,
   },
   flowActionsLabel: {
     color: colors.muted,
     fontSize: 10,
     fontWeight: '900',
     textTransform: 'uppercase',
-    width: '100%',
+  },
+  flowActionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   flowActionButton: {
     minHeight: 34,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 7,
   },
   flowActionText: {
     fontSize: 12,
+    fontWeight: '800',
   },
   actionHint: {
     color: colors.muted,
@@ -2107,6 +2775,46 @@ const styles = StyleSheet.create({
   listCellStrong: {
     color: colors.text,
     fontWeight: '900',
+  },
+  partnerActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  iconActionButton: {
+    alignItems: 'center',
+    backgroundColor: colors.cardSoft,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 6,
+    minHeight: 34,
+    paddingHorizontal: 10,
+  },
+  evidenceButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.cardSoft,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    minHeight: 38,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  dangerActionButton: {
+    backgroundColor: `${colors.danger}12`,
+    borderColor: `${colors.danger}44`,
+  },
+  iconActionText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  dangerActionText: {
+    color: colors.danger,
   },
   settingsGrid: {
     flexDirection: 'row',

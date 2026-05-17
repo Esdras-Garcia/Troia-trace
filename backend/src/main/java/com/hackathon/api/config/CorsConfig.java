@@ -18,8 +18,10 @@ public class CorsConfig {
     CorsFilter corsFilter(CorsProperties properties) {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(properties.allowedOrigins());
+        configuration.setAllowedOriginPatterns(properties.allowedOriginPatterns());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
+        configuration.setExposedHeaders(List.of("Authorization", "Content-Disposition"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
@@ -27,6 +29,6 @@ public class CorsConfig {
     }
 
     @ConfigurationProperties(prefix = "app.cors")
-    public record CorsProperties(List<String> allowedOrigins) {
+    public record CorsProperties(List<String> allowedOrigins, List<String> allowedOriginPatterns) {
     }
 }

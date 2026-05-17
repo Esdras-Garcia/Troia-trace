@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Check, FileCheck, Package, Upload, Users, X } from 'lucide-react-native';
 
 import { createComprovacao } from '../api/client';
@@ -28,6 +28,7 @@ export function NovaComprovacaoModal({
   const [tipo, setTipo] = useState('');
   const [parceiro, setParceiro] = useState('');
   const [observacoes, setObservacoes] = useState('');
+  const [evidencia, setEvidencia] = useState<EvidenceFile | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const materialOptions = useMemo(() => uniqueValues(materiais.map((item) => item.material)), [materiais]);
   const parceiroOptions = useMemo(() => uniqueValues(parceiros.map((item) => item.parceiro)), [parceiros]);
@@ -41,6 +42,7 @@ export function NovaComprovacaoModal({
     setQuantidadeKg('');
     setTipo('');
     setObservacoes('');
+    setEvidencia(null);
     onClose();
   }
 
@@ -53,6 +55,9 @@ export function NovaComprovacaoModal({
         tipo: tipo.trim(),
         parceiro: selectedParceiro.trim(),
         observacoes: observacoes.trim(),
+        evidenciaNome: evidencia?.nome,
+        evidenciaTipo: evidencia?.tipo,
+        evidenciaConteudo: evidencia?.conteudo,
       });
       setCreated(comprovacao);
       onCreated?.(comprovacao);
@@ -139,11 +144,11 @@ export function NovaComprovacaoModal({
                   onChange={setParceiro}
                 />
               </View>
-              <View style={styles.uploadBox}>
+              <Pressable style={styles.uploadBox} onPress={() => pickEvidence(setEvidencia)}>
                 <Upload color={colors.muted} size={28} />
-                <Text style={styles.uploadTitle}>Arraste arquivos aqui</Text>
-                <Text style={styles.uploadText}>Notas fiscais, certificados, fotos e comprovantes.</Text>
-              </View>
+                <Text style={styles.uploadTitle}>{evidencia ? evidencia.nome : 'Selecionar documento ou imagem'}</Text>
+                <Text style={styles.uploadText}>PDF, imagem ou comprovante até 1,5 MB.</Text>
+              </Pressable>
               <View style={styles.field}>
                 <Text style={styles.fieldLabel}>Observações</Text>
                 <TextInput
@@ -168,6 +173,38 @@ export function NovaComprovacaoModal({
       </View>
     </Modal>
   );
+}
+
+type EvidenceFile = {
+  nome: string;
+  tipo: string;
+  conteudo: string;
+};
+
+function pickEvidence(onSelected: (file: EvidenceFile) => void) {
+  if (Platform.OS !== 'web' || typeof document === 'undefined') {
+    return;
+  }
+
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*,application/pdf';
+  input.onchange = () => {
+    const file = input.files?.[0];
+    if (!file || file.size > 1_500_000) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result ?? '');
+      onSelected({
+        nome: file.name.slice(0, 120),
+        tipo: file.type || 'application/octet-stream',
+        conteudo: result.split(',')[1] ?? result,
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
 }
 
 function formatQuantity(value: string) {

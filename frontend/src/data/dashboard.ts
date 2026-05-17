@@ -50,6 +50,9 @@ export type Comprovacao = {
   status: ComprovacaoStatus;
   tipo: string;
   observacoes?: string | null;
+  evidenciaNome?: string | null;
+  evidenciaTipo?: string | null;
+  evidenciaConteudo?: string | null;
 };
 
 export type Stat = {
@@ -96,6 +99,7 @@ export type HelpItem = {
 };
 
 export type MaterialItem = {
+  id: string;
   material: string;
   volume: string;
   taxa: string;
