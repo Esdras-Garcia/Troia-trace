@@ -22,6 +22,7 @@ import com.hackathon.api.dashboard.DashboardData.SettingItem;
 import com.hackathon.api.dashboard.DashboardData.StatItem;
 import com.hackathon.api.dashboard.DashboardData.UserProfile;
 import com.hackathon.api.dashboard.DashboardData.VolumeItem;
+import com.hackathon.api.user.User;
 import jakarta.annotation.PostConstruct;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -65,9 +66,9 @@ public class DashboardService {
         refreshStaticSeedData();
     }
 
-    DashboardData dashboard() {
+    DashboardData dashboard(User user) {
         return new DashboardData(
-            appShell(),
+            appShell(user),
             stats(),
             listComprovacoes(null),
             volumeData(),
@@ -83,20 +84,28 @@ public class DashboardService {
         );
     }
 
-    AppShellData appShell() {
+    AppShellData appShell(User user) {
         AppShellData shell = readOne("shell", AppShellData.class, emptyShell());
         return new AppShellData(
             shell.brandName(),
             shell.brandSubtitle(),
             shell.period(),
-            shell.user(),
+            new UserProfile(user.getName(), "Empresa"),
             unreadNotificationsCount(),
             shell.pages()
         );
     }
 
-    CompanyProfile companyProfile() {
-        return readOne("companyProfile", CompanyProfile.class, emptyCompanyProfile());
+    CompanyProfile companyProfile(User user) {
+        return new CompanyProfile(
+            user.getName(),
+            user.getDocument(),
+            user.getEmail(),
+            user.getPhone(),
+            user.getAddress(),
+            user.getPlan(),
+            "Ativo"
+        );
     }
 
     List<NotificationItem> notifications() {
@@ -146,12 +155,55 @@ public class DashboardService {
             request.quantidadeKg(),
             request.parceiro(),
             LocalDate.now(),
-            "pendente",
+            "AGUARDANDO_CONFERENCIA",
             request.tipo(),
             request.observacoes()
         );
         insertSeed("comprovacoes", id, -nextNumber, comprovacao);
         return toResponse(comprovacao);
+    }
+
+    ComprovacaoResponse updateComprovacao(String id, DashboardData.UpdateComprovacaoRequest request) {
+        StoredComprovacao stored = readStoredComprovacoes().stream()
+            .filter(item -> item.comprovacao().id().equals(id))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("Comprovacao nao encontrada"));
+
+        Comprovacao updated = new Comprovacao(
+            stored.comprovacao().id(),
+            stored.comprovacao().hashLastro(),
+            request.material(),
+            request.quantidadeKg(),
+            request.parceiro(),
+            stored.comprovacao().dataEmissao(),
+            normalizeStatus(stored.comprovacao().status()),
+            request.tipo(),
+            appendHistory(request.observacoes(), "DADOS_EDITADOS")
+        );
+        updateSeed("comprovacoes", stored.itemKey(), updated);
+        return toResponse(updated);
+    }
+
+    ComprovacaoResponse updateComprovacaoStatus(String id, DashboardData.UpdateComprovacaoStatusRequest request) {
+        StoredComprovacao stored = readStoredComprovacoes().stream()
+            .filter(item -> item.comprovacao().id().equals(id))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("Comprovacao nao encontrada"));
+
+        String nextStatus = nextStatusFor(normalizeStatus(stored.comprovacao().status()), request.action());
+        Comprovacao updated = new Comprovacao(
+            stored.comprovacao().id(),
+            stored.comprovacao().hashLastro(),
+            stored.comprovacao().material(),
+            stored.comprovacao().quantidadeKg(),
+            stored.comprovacao().parceiro(),
+            stored.comprovacao().dataEmissao(),
+            nextStatus,
+            stored.comprovacao().tipo(),
+            appendActionHistory(stored.comprovacao().observacoes(), nextStatus, request)
+        );
+        updateSeed("comprovacoes", stored.itemKey(), updated);
+        return toResponse(updated);
     }
 
     List<MaterialItem> materiais(String query) {
@@ -311,14 +363,97 @@ public class DashboardService {
             String.format(Locale.forLanguageTag("pt-BR"), "%,.0f kg", comprovacao.quantidadeKg()),
             comprovacao.parceiro(),
             DATE_FORMATTER.format(comprovacao.dataEmissao()),
-            comprovacao.status(),
+            normalizeStatus(comprovacao.status()),
             comprovacao.tipo(),
             comprovacao.observacoes()
         );
     }
 
     private String searchable(Comprovacao item) {
-        return "%s %s %s %s".formatted(item.id(), item.material(), item.parceiro(), item.tipo()).toLowerCase(Locale.ROOT);
+        return "%s %s %s %s %s".formatted(item.id(), item.material(), item.parceiro(), item.tipo(), normalizeStatus(item.status())).toLowerCase(Locale.ROOT);
+    }
+
+    private List<StoredComprovacao> readStoredComprovacoes() {
+        return jdbc.query(
+            "select item_key, payload from dashboard_seed_data where category = ? order by sort_order, item_key",
+            (resultSet, rowNumber) -> new StoredComprovacao(
+                resultSet.getString("item_key"),
+                readPayload(resultSet.getString("payload"), Comprovacao.class)
+            ),
+            "comprovacoes"
+        );
+    }
+
+    private String nextStatusFor(String status, String action) {
+        String normalizedAction = action == null ? "" : action.trim().toUpperCase(Locale.ROOT);
+        return switch (normalizedAction) {
+            case "INICIAR_CONFERENCIA" -> requireStatus(status, "AGUARDANDO_CONFERENCIA", "EM_CONFERENCIA");
+            case "CONFERIR" -> requireOneOf(status, List.of("AGUARDANDO_CONFERENCIA", "EM_CONFERENCIA"), "CONFERIDO");
+            case "REGISTRAR_DIVERGENCIA" -> requireOneOf(status, List.of("AGUARDANDO_CONFERENCIA", "EM_CONFERENCIA", "CONFERIDO"), "CONFERENCIA_COM_DIVERGENCIA");
+            case "APROVAR_DIVERGENCIA" -> requireStatus(status, "CONFERENCIA_COM_DIVERGENCIA", "CONFERIDO");
+            case "REJEITAR" -> requireOneOf(status, List.of("AGUARDANDO_CONFERENCIA", "EM_CONFERENCIA", "CONFERENCIA_COM_DIVERGENCIA"), "REJEITADO");
+            case "LIBERAR_DESTINACAO" -> requireStatus(status, "CONFERIDO", "AGUARDANDO_DESTINACAO");
+            case "REGISTRAR_DESTINO" -> requireStatus(status, "AGUARDANDO_DESTINACAO", "DESTINADO");
+            case "SOLICITAR_CERTIFICADO" -> requireStatus(status, "DESTINADO", "AGUARDANDO_CERTIFICACAO");
+            case "CERTIFICAR" -> requireStatus(status, "AGUARDANDO_CERTIFICACAO", "CERTIFICADO");
+            case "GERAR_RELATORIO" -> requireStatus(status, "CERTIFICADO", "RELATORIO_GERADO");
+            case "CANCELAR" -> requireOneOf(status, List.of("AGUARDANDO_CONFERENCIA", "EM_CONFERENCIA", "CONFERENCIA_COM_DIVERGENCIA"), "CANCELADO");
+            default -> throw new IllegalArgumentException("Acao de comprovacao invalida");
+        };
+    }
+
+    private String requireStatus(String current, String expected, String next) {
+        if (!current.equals(expected)) {
+            throw new IllegalArgumentException("Transicao de status invalida");
+        }
+        return next;
+    }
+
+    private String requireOneOf(String current, List<String> expected, String next) {
+        if (!expected.contains(current)) {
+            throw new IllegalArgumentException("Transicao de status invalida");
+        }
+        return next;
+    }
+
+    private String normalizeStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return "AGUARDANDO_CONFERENCIA";
+        }
+
+        return switch (status.trim().toUpperCase(Locale.ROOT)) {
+            case "PENDENTE" -> "AGUARDANDO_CONFERENCIA";
+            case "VERIFICADO" -> "CERTIFICADO";
+            case "EXPIRADO" -> "REJEITADO";
+            default -> status.trim().toUpperCase(Locale.ROOT);
+        };
+    }
+
+    private String appendHistory(String observacoes, String status) {
+        String entry = "Status atualizado para %s em %s".formatted(status, LocalDate.now());
+        if (observacoes == null || observacoes.isBlank()) {
+            return entry;
+        }
+        return "%s\n%s".formatted(observacoes, entry);
+    }
+
+    private String appendActionHistory(String observacoes, String status, DashboardData.UpdateComprovacaoStatusRequest request) {
+        StringBuilder entry = new StringBuilder("Status atualizado para %s em %s".formatted(status, LocalDate.now()));
+        appendDetail(entry, "Responsavel", request.responsavel());
+        appendDetail(entry, "Destino", request.destino());
+        appendDetail(entry, "Documento", request.documento());
+        appendDetail(entry, "Observacoes", request.observacoes());
+
+        if (observacoes == null || observacoes.isBlank()) {
+            return entry.toString();
+        }
+        return "%s\n%s".formatted(observacoes, entry);
+    }
+
+    private void appendDetail(StringBuilder entry, String label, String value) {
+        if (value != null && !value.isBlank()) {
+            entry.append(" | ").append(label).append(": ").append(value.trim());
+        }
     }
 
     private int comprovacaoNumber(String id) {
@@ -334,5 +469,8 @@ public class DashboardService {
         random.nextBytes(bytes);
         String hash = HexFormat.of().formatHex(bytes);
         return "0x%s...%s".formatted(hash.substring(0, 4), hash.substring(hash.length() - 4));
+    }
+
+    private record StoredComprovacao(String itemKey, Comprovacao comprovacao) {
     }
 }

@@ -11,10 +11,10 @@
     "pages": [
       { "key": "overview", "title": "Visão Geral", "subtitle": "Acompanhe suas comprovações de logística reversa.", "section": "menu" },
       { "key": "comprovacoes", "title": "Comprovações", "subtitle": "Consulte e registre operações com hash de lastro.", "section": "menu" },
-      { "key": "materiais", "title": "Materiais", "subtitle": "Controle volumes, categorias e eficiência por material.", "section": "menu" },
-      { "key": "relatorios", "title": "Relatórios", "subtitle": "Exporte rastreabilidade, fiscalização e indicadores ESG.", "section": "menu" },
       { "key": "parceiros", "title": "Parceiros", "subtitle": "Acompanhe cooperativas, recicladoras e terceiros.", "section": "menu" },
+      { "key": "materiais", "title": "Materiais", "subtitle": "Controle volumes, categorias e eficiência por material.", "section": "menu" },
       { "key": "certificados", "title": "Certificados", "subtitle": "Valide laudos e certificados vinculados ao lastro.", "section": "menu" },
+      { "key": "relatorios", "title": "Relatórios", "subtitle": "Exporte rastreabilidade, fiscalização e indicadores ESG.", "section": "menu" },
       { "key": "configuracoes", "title": "Configurações", "subtitle": "Ajuste regras, tolerâncias, notificações e permissão.", "section": "system" },
       { "key": "ajuda", "title": "Ajuda", "subtitle": "Encontre orientações para operar a plataforma.", "section": "system" }
     ]

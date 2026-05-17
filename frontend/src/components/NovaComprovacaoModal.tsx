@@ -1,19 +1,25 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { FileCheck, Upload, X } from 'lucide-react-native';
+import { Check, FileCheck, Package, Upload, Users, X } from 'lucide-react-native';
 
 import { createComprovacao } from '../api/client';
-import type { Comprovacao } from '../data/dashboard';
+import type { Comprovacao, MaterialItem, PartnerItem } from '../data/dashboard';
 import { Button, Card, colors, Input } from './ui';
 
 export function NovaComprovacaoModal({
   visible,
+  materiais,
+  parceiros,
   onClose,
   onCreated,
+  onViewCreated,
 }: {
   visible: boolean;
+  materiais: MaterialItem[];
+  parceiros: PartnerItem[];
   onClose: () => void;
   onCreated?: (comprovacao: Comprovacao) => void;
+  onViewCreated?: (comprovacao: Comprovacao) => void;
 }) {
   const [registered, setRegistered] = useState(false);
   const [created, setCreated] = useState<Comprovacao | null>(null);
@@ -23,11 +29,18 @@ export function NovaComprovacaoModal({
   const [parceiro, setParceiro] = useState('');
   const [observacoes, setObservacoes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const materialOptions = useMemo(() => uniqueValues(materiais.map((item) => item.material)), [materiais]);
+  const parceiroOptions = useMemo(() => uniqueValues(parceiros.map((item) => item.parceiro)), [parceiros]);
+  const selectedMaterial = material || materialOptions[0] || '';
+  const selectedParceiro = parceiro || parceiroOptions[0] || '';
 
   function close() {
     setRegistered(false);
     setCreated(null);
     setSubmitting(false);
+    setQuantidadeKg('');
+    setTipo('');
+    setObservacoes('');
     onClose();
   }
 
@@ -35,11 +48,11 @@ export function NovaComprovacaoModal({
     setSubmitting(true);
     try {
       const comprovacao = await createComprovacao({
-        material,
+        material: selectedMaterial.trim(),
         quantidadeKg: Number(quantidadeKg.replace(',', '.')),
-        tipo,
-        parceiro,
-        observacoes,
+        tipo: tipo.trim(),
+        parceiro: selectedParceiro.trim(),
+        observacoes: observacoes.trim(),
       });
       setCreated(comprovacao);
       onCreated?.(comprovacao);
@@ -78,27 +91,53 @@ export function NovaComprovacaoModal({
                 <Text style={[styles.fieldLabel, styles.fieldGap]}>Hash do Lastro</Text>
                 <Text style={styles.hashText}>{created?.hashLastro ?? '0x4f8a7c2d1e9b3f6a5c8d2e7b4a9c1f3d'}</Text>
               </View>
-              <Button onPress={close}>Ver Comprovação</Button>
+              <Button
+                onPress={() => {
+                  if (created) {
+                    onViewCreated?.(created);
+                  }
+                  close();
+                }}
+              >
+                Ver Comprovação
+              </Button>
             </View>
           ) : (
             <View style={styles.form}>
               <View style={styles.twoCols}>
-                <View style={styles.field}>
+                <View style={[styles.field, styles.twoColField]}>
                   <Text style={styles.fieldLabel}>Material</Text>
-                  <Input value={material} onChangeText={setMaterial} />
+                  <OptionSelect
+                    emptyText="Nenhum material cadastrado"
+                    icon="material"
+                    options={materialOptions}
+                    value={selectedMaterial}
+                    onChange={setMaterial}
+                  />
                 </View>
-                <View style={styles.field}>
+                <View style={[styles.field, styles.twoColField]}>
                   <Text style={styles.fieldLabel}>Quantidade (kg)</Text>
-                  <Input value={quantidadeKg} onChangeText={setQuantidadeKg} />
+                  <Input
+                    value={quantidadeKg}
+                    onChangeText={(value) => setQuantidadeKg(formatQuantity(value))}
+                    keyboardType="decimal-pad"
+                    maxLength={13}
+                  />
                 </View>
               </View>
               <View style={styles.field}>
                 <Text style={styles.fieldLabel}>Tipo de Operação</Text>
-                <Input value={tipo} onChangeText={setTipo} />
+                <Input value={tipo} onChangeText={setTipo} maxLength={80} />
               </View>
               <View style={styles.field}>
                 <Text style={styles.fieldLabel}>Parceiro Responsável</Text>
-                <Input value={parceiro} onChangeText={setParceiro} />
+                <OptionSelect
+                  emptyText="Nenhum parceiro cadastrado"
+                  icon="parceiro"
+                  options={parceiroOptions}
+                  value={selectedParceiro}
+                  onChange={setParceiro}
+                />
               </View>
               <View style={styles.uploadBox}>
                 <Upload color={colors.muted} size={28} />
@@ -113,6 +152,7 @@ export function NovaComprovacaoModal({
                   placeholderTextColor={colors.muted}
                   value={observacoes}
                   onChangeText={setObservacoes}
+                  maxLength={500}
                   style={styles.textArea}
                 />
               </View>
@@ -127,6 +167,69 @@ export function NovaComprovacaoModal({
         </Card>
       </View>
     </Modal>
+  );
+}
+
+function formatQuantity(value: string) {
+  const normalized = value.replace(/[^\d,.]/g, '').replace(/\./g, ',');
+  const [integer = '', ...decimalParts] = normalized.split(',');
+  const decimal = decimalParts.join('').slice(0, 3);
+  const limitedInteger = integer.slice(0, 9);
+
+  if (normalized.includes(',')) {
+    return `${limitedInteger}${limitedInteger || decimal ? ',' : ''}${decimal}`;
+  }
+
+  return limitedInteger;
+}
+
+function uniqueValues(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function OptionSelect({
+  emptyText,
+  icon,
+  options,
+  value,
+  onChange,
+}: {
+  emptyText: string;
+  icon: 'material' | 'parceiro';
+  options: string[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const EmptyIcon = icon === 'material' ? Package : Users;
+
+  if (!options.length) {
+    return (
+      <View style={styles.emptySelect}>
+        <EmptyIcon color={colors.muted} size={16} />
+        <Text style={styles.emptySelectText}>{emptyText}</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.optionGroup}>
+      {options.map((option) => {
+        const selected = option === value;
+
+        return (
+          <Pressable
+            key={option}
+            style={[styles.optionButton, selected && styles.optionButtonSelected]}
+            onPress={() => onChange(option)}
+          >
+            {selected ? <Check color="#fff" size={14} /> : <EmptyIcon color={colors.muted} size={14} />}
+            <Text style={[styles.optionText, selected && styles.optionTextSelected]} numberOfLines={1}>
+              {option}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
 
@@ -177,9 +280,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   field: {
-    flex: 1,
     gap: 7,
     minWidth: 180,
+  },
+  twoColField: {
+    flex: 1,
   },
   fieldLabel: {
     color: colors.muted,
@@ -192,9 +297,55 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     color: colors.text,
-    minHeight: 82,
+    height: 92,
     padding: 12,
     textAlignVertical: 'top',
+  },
+  optionGroup: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  optionButton: {
+    alignItems: 'center',
+    backgroundColor: colors.cardSoft,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 7,
+    minHeight: 38,
+    maxWidth: '100%',
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+  },
+  optionButtonSelected: {
+    backgroundColor: `${colors.primary}22`,
+    borderColor: colors.primary,
+  },
+  optionText: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  optionTextSelected: {
+    color: colors.text,
+  },
+  emptySelect: {
+    alignItems: 'center',
+    backgroundColor: colors.cardSoft,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    minHeight: 42,
+    paddingHorizontal: 12,
+  },
+  emptySelectText: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '800',
   },
   uploadBox: {
     alignItems: 'center',
@@ -220,6 +371,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 10,
     justifyContent: 'flex-end',
+    marginTop: 2,
   },
   successStack: {
     gap: 16,

@@ -38,6 +38,28 @@ export type CreateComprovacaoPayload = {
   observacoes?: string;
 };
 
+export type UpdateComprovacaoPayload = CreateComprovacaoPayload;
+
+export type ComprovacaoAction =
+  | 'INICIAR_CONFERENCIA'
+  | 'CONFERIR'
+  | 'REGISTRAR_DIVERGENCIA'
+  | 'APROVAR_DIVERGENCIA'
+  | 'REJEITAR'
+  | 'LIBERAR_DESTINACAO'
+  | 'REGISTRAR_DESTINO'
+  | 'SOLICITAR_CERTIFICADO'
+  | 'CERTIFICAR'
+  | 'GERAR_RELATORIO'
+  | 'CANCELAR';
+
+export type ComprovacaoActionPayload = {
+  responsavel?: string;
+  destino?: string;
+  documento?: string;
+  observacoes?: string;
+};
+
 let authToken: string | null = null;
 
 export function setAuthToken(token: string | null) {
@@ -68,7 +90,11 @@ export type LoginPayload = {
 
 export type RegisterPayload = {
   name: string;
+  document: string;
   email: string;
+  phone: string;
+  address: string;
+  plan: string;
   password: string;
 };
 
@@ -159,5 +185,19 @@ export function createComprovacao(payload: CreateComprovacaoPayload): Promise<Co
   return request<Comprovacao>('/api/comprovacoes', {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+}
+
+export function updateComprovacao(id: string, payload: UpdateComprovacaoPayload): Promise<Comprovacao> {
+  return request<Comprovacao>(`/api/comprovacoes/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateComprovacaoStatus(id: string, action: ComprovacaoAction, payload: ComprovacaoActionPayload = {}): Promise<Comprovacao> {
+  return request<Comprovacao>(`/api/comprovacoes/${encodeURIComponent(id)}/status`, {
+    method: 'POST',
+    body: JSON.stringify({ action, ...payload }),
   });
 }

@@ -26,7 +26,19 @@ export type NavItem = {
   icon: LucideIcon;
 };
 
-export type ComprovacaoStatus = 'verificado' | 'pendente' | 'expirado';
+export type ComprovacaoStatus =
+  | 'CADASTRADO'
+  | 'AGUARDANDO_CONFERENCIA'
+  | 'EM_CONFERENCIA'
+  | 'CONFERIDO'
+  | 'CONFERENCIA_COM_DIVERGENCIA'
+  | 'REJEITADO'
+  | 'AGUARDANDO_DESTINACAO'
+  | 'DESTINADO'
+  | 'AGUARDANDO_CERTIFICACAO'
+  | 'CERTIFICADO'
+  | 'RELATORIO_GERADO'
+  | 'CANCELADO';
 
 export type Comprovacao = {
   id: string;
@@ -172,10 +184,10 @@ export type DashboardData = {
 export const navItems: NavItem[] = [
   { key: 'overview', title: 'Visão Geral', icon: LayoutDashboard },
   { key: 'comprovacoes', title: 'Comprovações', icon: FileCheck },
-  { key: 'materiais', title: 'Materiais', icon: Package },
-  { key: 'relatorios', title: 'Relatórios', icon: BarChart3 },
   { key: 'parceiros', title: 'Parceiros', icon: Building2 },
+  { key: 'materiais', title: 'Materiais', icon: Package },
   { key: 'certificados', title: 'Certificados', icon: Shield },
+  { key: 'relatorios', title: 'Relatórios', icon: BarChart3 },
 ];
 
 export const bottomNavItems: NavItem[] = [

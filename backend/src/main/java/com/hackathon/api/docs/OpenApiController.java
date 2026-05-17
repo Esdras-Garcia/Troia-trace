@@ -82,9 +82,13 @@ public class OpenApiController {
             ), List.of("email", "password")));
         schemas.put("RegisterRequest", object(Map.of(
                 "name", stringExample("Empresa Exemplo"),
+                "document", stringExample("12.345.678/0001-90"),
                 "email", stringExample("contato@empresa.com"),
+                "phone", stringExample("(11) 4002-8922"),
+                "address", stringExample("Av. Paulista, 1000 - São Paulo, SP"),
+                "plan", stringExample("Enterprise"),
                 "password", stringExample("senha-segura")
-            ), List.of("name", "email", "password")));
+            ), List.of("name", "document", "email", "phone", "address", "plan", "password")));
         schemas.put("LoginResponse", object(Map.of(
                 "token", stringExample("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."),
                 "user", ref("AuthUser")

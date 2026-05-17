@@ -96,6 +96,24 @@ public record DashboardData(
     ) {
     }
 
+    public record UpdateComprovacaoStatusRequest(
+        @NotBlank @Size(max = 80) String action,
+        @Size(max = 120) String responsavel,
+        @Size(max = 180) String destino,
+        @Size(max = 180) String documento,
+        @Size(max = 500) String observacoes
+    ) {
+    }
+
+    public record UpdateComprovacaoRequest(
+        @NotBlank @Size(max = 120) String material,
+        @NotNull @Positive Double quantidadeKg,
+        @NotBlank @Size(max = 80) String tipo,
+        @NotBlank @Size(max = 140) String parceiro,
+        @Size(max = 500) String observacoes
+    ) {
+    }
+
     public record VolumeItem(String mes, int plastico, int papel, int vidro, int metal) {
     }
 

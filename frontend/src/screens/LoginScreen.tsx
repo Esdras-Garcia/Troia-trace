@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { Building2, CheckCircle2, FileCheck, Lock, Mail, Recycle, ShieldCheck } from 'lucide-react-native';
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { BarChart3, Building2, Check, FileCheck, FileText, Lock, Mail, MapPin, Package, Phone, Recycle, Tag } from 'lucide-react-native';
 
 import { login, register, setAuthToken } from '../api/client';
 import { Badge, Button, Card, colors, Input } from '../components/ui';
@@ -8,9 +8,15 @@ import { Badge, Button, Card, colors, Input } from '../components/ui';
 export function LoginScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [name, setName] = useState('');
+  const [document, setDocument] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [postalCode, setPostalCode] = useState('');
+  const [address, setAddress] = useState('');
+  const [plan, setPlan] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [loadingAddress, setLoadingAddress] = useState(false);
   const [error, setError] = useState('');
   const { width } = useWindowDimensions();
   const isWide = width >= 920;
@@ -21,16 +27,41 @@ export function LoginScreen({ onAuthenticated }: { onAuthenticated: () => void }
       return;
     }
 
-    if (isRegister && !name.trim()) {
-      setError('Informe o nome da empresa.');
-      return;
+    if (isRegister) {
+      const missingField = [
+        [name, 'nome da empresa'],
+        [document, 'documento'],
+        [email, 'e-mail'],
+        [phone, 'telefone'],
+        [postalCode, 'CEP'],
+        [address, 'endereço'],
+        [plan, 'plano'],
+      ].find(([value]) => !String(value).trim());
+
+      if (missingField) {
+        setError(`Informe o ${missingField[1]}.`);
+        return;
+      }
+
+      if (!isValidCpfCnpj(document)) {
+        setError('Informe um CPF ou CNPJ válido.');
+        return;
+      }
     }
 
     setSubmitting(true);
     setError('');
     try {
       const response = isRegister
-        ? await register({ name: name.trim(), email: email.trim(), password })
+        ? await register({
+            name: name.trim(),
+            document: document.trim(),
+            email: email.trim(),
+            phone: phone.trim(),
+            address: address.trim(),
+            plan: plan.trim(),
+            password,
+          })
         : await login({ email: email.trim(), password });
       setAuthToken(response.token);
       onAuthenticated();
@@ -44,6 +75,44 @@ export function LoginScreen({ onAuthenticated }: { onAuthenticated: () => void }
   function switchMode(nextMode: 'login' | 'register') {
     setMode(nextMode);
     setError('');
+  }
+
+  function changeDocument(value: string) {
+    setDocument(formatCpfCnpj(value));
+  }
+
+  function changePhone(value: string) {
+    setPhone(formatPhone(value));
+  }
+
+  async function changePostalCode(value: string) {
+    const nextPostalCode = formatPostalCode(value);
+    const digits = onlyDigits(nextPostalCode);
+
+    setPostalCode(nextPostalCode);
+
+    if (digits.length !== 8) {
+      setLoadingAddress(false);
+      return;
+    }
+
+    setLoadingAddress(true);
+    setError('');
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      const result = await response.json() as ViaCepResponse;
+
+      if (!response.ok || result.erro) {
+        setError('CEP não encontrado.');
+        return;
+      }
+
+      setAddress(formatAddressFromViaCep(result, nextPostalCode));
+    } catch {
+      setError('Não foi possível consultar o CEP agora.');
+    } finally {
+      setLoadingAddress(false);
+    }
   }
 
   return (
@@ -62,12 +131,13 @@ export function LoginScreen({ onAuthenticated }: { onAuthenticated: () => void }
 
           {isWide ? (
             <View style={styles.contextBody}>
-              <Badge tone="primary">Acesso seguro</Badge>
-              <Text style={styles.contextTitle}>Rastreabilidade operacional para comprovações, materiais e parceiros.</Text>
+              <Badge tone="primary">Gestão de logística reversa</Badge>
+              <Text style={styles.contextTitle}>Controle comprovações, materiais e parceiros em um painel único.</Text>
               <View style={styles.contextGrid}>
-                <ContextMetric icon={FileCheck} label="Comprovações" value="Lastro" />
-                <ContextMetric icon={ShieldCheck} label="Autenticação" value="JWT" />
-                <ContextMetric icon={CheckCircle2} label="Senha" value="BCrypt" />
+                <ContextMetric icon={FileCheck} label="Auditoria" value="Comprovações" />
+                <ContextMetric icon={Package} label="Volumes e status" value="Materiais" />
+                <ContextMetric icon={Building2} label="Responsáveis" value="Parceiros" />
+                <ContextMetric icon={BarChart3} label="Indicadores" value="Relatórios" />
               </View>
             </View>
           ) : null}
@@ -100,13 +170,52 @@ export function LoginScreen({ onAuthenticated }: { onAuthenticated: () => void }
 
           <View style={styles.form}>
             {isRegister ? (
-              <Field
-                icon={Building2}
-                label="Nome da empresa"
-                value={name}
-                onChangeText={setName}
-                placeholder="Nome da empresa"
-              />
+              <>
+                <Field
+                  icon={Building2}
+                  label="Nome da empresa"
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Nome da empresa"
+                  maxLength={120}
+                />
+                <Field
+                  icon={FileText}
+                  label="Documento"
+                  value={document}
+                  onChangeText={changeDocument}
+                  placeholder="CNPJ ou CPF"
+                  keyboardType="number-pad"
+                  maxLength={18}
+                />
+                <Field
+                  icon={Phone}
+                  label="Telefone"
+                  value={phone}
+                  onChangeText={changePhone}
+                  placeholder="(00) 00000-0000"
+                  keyboardType="phone-pad"
+                  maxLength={15}
+                />
+                <Field
+                  icon={MapPin}
+                  label="CEP"
+                  value={postalCode}
+                  onChangeText={changePostalCode}
+                  placeholder="00000-000"
+                  keyboardType="number-pad"
+                  maxLength={9}
+                />
+                <Field
+                  icon={MapPin}
+                  label={loadingAddress ? 'Endereço - buscando CEP...' : 'Endereço'}
+                  value={address}
+                  onChangeText={setAddress}
+                  placeholder="Rua, número, bairro, cidade - UF"
+                  maxLength={220}
+                />
+                <PlanSelect value={plan} onChange={setPlan} />
+              </>
             ) : null}
             <Field
               icon={Mail}
@@ -116,6 +225,7 @@ export function LoginScreen({ onAuthenticated }: { onAuthenticated: () => void }
               placeholder="email@empresa.com"
               autoCapitalize="none"
               keyboardType="email-address"
+              maxLength={180}
             />
             <Field
               icon={Lock}
@@ -123,6 +233,7 @@ export function LoginScreen({ onAuthenticated }: { onAuthenticated: () => void }
               value={password}
               onChangeText={setPassword}
               placeholder="Senha"
+              maxLength={80}
               secureTextEntry
             />
             {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -139,6 +250,117 @@ export function LoginScreen({ onAuthenticated }: { onAuthenticated: () => void }
   );
 }
 
+type ViaCepResponse = {
+  cep?: string;
+  logradouro?: string;
+  bairro?: string;
+  localidade?: string;
+  uf?: string;
+  erro?: boolean;
+};
+
+function onlyDigits(value: string) {
+  return value.replace(/\D/g, '');
+}
+
+function formatCpfCnpj(value: string) {
+  const digits = onlyDigits(value).slice(0, 14);
+
+  if (digits.length <= 11) {
+    return digits
+      .replace(/^(\d{3})(\d)/, '$1.$2')
+      .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/^(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4');
+  }
+
+  return digits
+    .replace(/^(\d{2})(\d)/, '$1.$2')
+    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/^(\d{2})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3/$4')
+    .replace(/^(\d{2})\.(\d{3})\.(\d{3})\/(\d{4})(\d)/, '$1.$2.$3/$4-$5');
+}
+
+function isValidCpfCnpj(value: string) {
+  const digits = onlyDigits(value);
+
+  if (digits.length === 11) {
+    return isValidCpf(digits);
+  }
+
+  if (digits.length === 14) {
+    return isValidCnpj(digits);
+  }
+
+  return false;
+}
+
+function isValidCpf(digits: string) {
+  if (/^(\d)\1+$/.test(digits)) {
+    return false;
+  }
+
+  const firstDigit = cpfCheckDigit(digits, 9);
+  const secondDigit = cpfCheckDigit(digits, 10);
+
+  return digits[9] === String(firstDigit) && digits[10] === String(secondDigit);
+}
+
+function cpfCheckDigit(digits: string, size: number) {
+  const sum = digits
+    .slice(0, size)
+    .split('')
+    .reduce((total, digit, index) => total + Number(digit) * (size + 1 - index), 0);
+  const rest = (sum * 10) % 11;
+
+  return rest === 10 ? 0 : rest;
+}
+
+function isValidCnpj(digits: string) {
+  if (/^(\d)\1+$/.test(digits)) {
+    return false;
+  }
+
+  const firstDigit = cnpjCheckDigit(digits, [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  const secondDigit = cnpjCheckDigit(digits, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+
+  return digits[12] === String(firstDigit) && digits[13] === String(secondDigit);
+}
+
+function cnpjCheckDigit(digits: string, weights: number[]) {
+  const sum = weights.reduce((total, weight, index) => total + Number(digits[index]) * weight, 0);
+  const rest = sum % 11;
+
+  return rest < 2 ? 0 : 11 - rest;
+}
+
+function formatPhone(value: string) {
+  const digits = onlyDigits(value).slice(0, 11);
+
+  if (digits.length <= 10) {
+    return digits
+      .replace(/^(\d{2})(\d)/, '($1) $2')
+      .replace(/^(\(\d{2}\) \d{4})(\d)/, '$1-$2');
+  }
+
+  return digits
+    .replace(/^(\d{2})(\d)/, '($1) $2')
+    .replace(/^(\(\d{2}\) \d{5})(\d)/, '$1-$2');
+}
+
+function formatPostalCode(value: string) {
+  return onlyDigits(value).slice(0, 8).replace(/^(\d{5})(\d)/, '$1-$2');
+}
+
+function formatAddressFromViaCep(result: ViaCepResponse, postalCode: string) {
+  const street = result.logradouro?.trim();
+  const district = result.bairro?.trim();
+  const city = result.localidade?.trim();
+  const state = result.uf?.trim();
+  const cityState = [city, state].filter(Boolean).join(' - ');
+
+  return [street, district, cityState, `CEP ${postalCode}`].filter(Boolean).join(', ');
+}
+
 function Field({
   icon: Icon,
   label,
@@ -153,7 +375,8 @@ function Field({
   onChangeText: (value: string) => void;
   placeholder: string;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
-  keyboardType?: 'default' | 'email-address';
+  keyboardType?: 'default' | 'email-address' | 'number-pad' | 'phone-pad';
+  maxLength?: number;
   secureTextEntry?: boolean;
 }) {
   return (
@@ -183,6 +406,34 @@ function ContextMetric({ icon: Icon, label, value }: { icon: typeof FileCheck; l
   );
 }
 
+const planOptions = ['Essencial', 'Pro', 'Enterprise'];
+
+function PlanSelect({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <View style={styles.field}>
+      <Text style={styles.label}>Plano</Text>
+      <View style={styles.planGroup}>
+        {planOptions.map((option) => {
+          const selected = value === option;
+
+          return (
+            <Pressable
+              key={option}
+              style={[styles.planOption, selected && styles.planOptionSelected]}
+              onPress={() => onChange(option)}
+            >
+              <View style={[styles.planIcon, selected && styles.planIconSelected]}>
+                {selected ? <Check color="#fff" size={14} /> : <Tag color={colors.muted} size={14} />}
+              </View>
+              <Text style={[styles.planText, selected && styles.planTextSelected]}>{option}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   screen: {
     backgroundColor: colors.background,
@@ -198,6 +449,7 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   shell: {
+    alignItems: 'flex-start',
     alignSelf: 'center',
     flexDirection: 'row',
     gap: 20,
@@ -215,10 +467,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flex: 1,
     justifyContent: 'space-between',
-    minHeight: 500,
+    height: 500,
     padding: 20,
   },
   contextPanelMobile: {
+    height: 'auto',
     minHeight: 0,
     padding: 14,
   },
@@ -355,6 +608,48 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
+  },
+  planGroup: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  planOption: {
+    alignItems: 'center',
+    backgroundColor: colors.cardSoft,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    minHeight: 42,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  planOptionSelected: {
+    backgroundColor: `${colors.primary}20`,
+    borderColor: colors.primary,
+  },
+  planIcon: {
+    alignItems: 'center',
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 22,
+    justifyContent: 'center',
+    width: 22,
+  },
+  planIconSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  planText: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  planTextSelected: {
+    color: colors.text,
   },
   error: {
     backgroundColor: `${colors.danger}16`,

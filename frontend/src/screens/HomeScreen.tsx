@@ -1,5 +1,5 @@
 import { createElement, useEffect, useMemo, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import {
   Bell,
   Building2,
@@ -33,6 +33,11 @@ import {
   getRelatorios,
   logout,
   markNotificationRead,
+  updateComprovacaoStatus,
+  updateComprovacao,
+  type ComprovacaoAction,
+  type ComprovacaoActionPayload,
+  type UpdateComprovacaoPayload,
 } from '../api/client';
 import {
   bottomNavItems,
@@ -59,6 +64,8 @@ export function HomeScreen({ onLoggedOut }: { onLoggedOut: () => void }) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [editingComprovacao, setEditingComprovacao] = useState<Comprovacao | null>(null);
+  const [focusedComprovacaoId, setFocusedComprovacaoId] = useState('');
   const [loggedOut, setLoggedOut] = useState(false);
   const { width } = useWindowDimensions();
   const isWide = width >= 980;
@@ -184,6 +191,31 @@ export function HomeScreen({ onLoggedOut }: { onLoggedOut: () => void }) {
     }
   }
 
+  async function handleComprovacaoAction(id: string, action: ComprovacaoAction, payload?: ComprovacaoActionPayload) {
+    const updated = await updateComprovacaoStatus(id, action, payload);
+    setDashboard((current) => ({
+      ...current,
+      comprovacoes: current.comprovacoes.map((item) => (item.id === updated.id ? updated : item)),
+    }));
+    setFocusedComprovacaoId(updated.id);
+  }
+
+  async function handleUpdateComprovacao(id: string, payload: UpdateComprovacaoPayload) {
+    const updated = await updateComprovacao(id, payload);
+    setDashboard((current) => ({
+      ...current,
+      comprovacoes: current.comprovacoes.map((item) => (item.id === updated.id ? updated : item)),
+    }));
+    setEditingComprovacao(null);
+    setFocusedComprovacaoId(updated.id);
+  }
+
+  function handleViewCreatedComprovacao(comprovacao: Comprovacao) {
+    setActivePage('comprovacoes');
+    setQuery('');
+    setFocusedComprovacaoId(comprovacao.id);
+  }
+
   if (loggedOut) {
     return (
       <View style={styles.logoutScreen}>
@@ -200,9 +232,22 @@ export function HomeScreen({ onLoggedOut }: { onLoggedOut: () => void }) {
     <View style={styles.app}>
       <NovaComprovacaoModal
         visible={modalVisible}
+        materiais={dashboard.materiais}
+        parceiros={dashboard.parceiros}
         onClose={() => setModalVisible(false)}
         onCreated={(comprovacao) => setDashboard((current) => ({ ...current, comprovacoes: [comprovacao, ...current.comprovacoes] }))}
+        onViewCreated={handleViewCreatedComprovacao}
       />
+      {editingComprovacao ? (
+        <EditComprovacaoModal
+          key={`${editingComprovacao.id}-${editingComprovacao.status}`}
+          comprovacao={editingComprovacao}
+          materiais={dashboard.materiais}
+          parceiros={dashboard.parceiros}
+          onClose={() => setEditingComprovacao(null)}
+          onSave={handleUpdateComprovacao}
+        />
+      ) : null}
       {isWide ? <Sidebar activePage={activePage} dashboard={dashboard} onNavigate={setActivePage} /> : null}
       <View style={styles.contentShell}>
         <TopHeader
@@ -243,7 +288,16 @@ export function HomeScreen({ onLoggedOut }: { onLoggedOut: () => void }) {
               ) : null}
             </View>
           </View>
-          <PageContent activePage={activePage} query={query} isWide={isWide} dashboard={dashboard} onNavigate={setActivePage} />
+          <PageContent
+            activePage={activePage}
+            query={query}
+            isWide={isWide}
+            dashboard={dashboard}
+            onNavigate={setActivePage}
+            onComprovacaoAction={handleComprovacaoAction}
+            onEditComprovacao={setEditingComprovacao}
+            focusedComprovacaoId={focusedComprovacaoId}
+          />
         </ScrollView>
       </View>
     </View>
@@ -329,6 +383,7 @@ function TopHeader({
             value={query}
             onChangeText={onChangeQuery}
             placeholder="Buscar..."
+            maxLength={80}
             style={styles.searchInput}
           />
         </View>
@@ -368,6 +423,7 @@ function TopHeader({
           value={query}
           onChangeText={onChangeQuery}
           placeholder="Buscar comprovações, materiais..."
+          maxLength={80}
           style={styles.searchInput}
         />
       </View>
@@ -472,18 +528,32 @@ function PageContent({
   isWide,
   dashboard,
   onNavigate,
+  onComprovacaoAction,
+  onEditComprovacao,
+  focusedComprovacaoId,
 }: {
   activePage: PageKey;
   query: string;
   isWide: boolean;
   dashboard: DashboardData;
   onNavigate: (page: PageKey) => void;
+  onComprovacaoAction: (id: string, action: ComprovacaoAction, payload?: ComprovacaoActionPayload) => Promise<void>;
+  onEditComprovacao: (comprovacao: Comprovacao) => void;
+  focusedComprovacaoId: string;
 }) {
   if (activePage === 'overview') {
     return <OverviewPage query={query} isWide={isWide} dashboard={dashboard} />;
   }
   if (activePage === 'comprovacoes') {
-    return <ComprovacoesPage query={query} comprovacoes={dashboard.comprovacoes} />;
+    return (
+      <ComprovacoesPage
+        query={query}
+        comprovacoes={dashboard.comprovacoes}
+        onAction={onComprovacaoAction}
+        onEdit={onEditComprovacao}
+        focusedId={focusedComprovacaoId}
+      />
+    );
   }
   if (activePage === 'materiais') {
     return (
@@ -550,28 +620,54 @@ function OverviewPage({ query, isWide, dashboard }: { query: string; isWide: boo
   );
 }
 
-function ComprovacoesPage({ query, comprovacoes }: { query: string; comprovacoes: Comprovacao[] }) {
+function ComprovacoesPage({
+  query,
+  comprovacoes,
+  onAction,
+  onEdit,
+  focusedId,
+}: {
+  query: string;
+  comprovacoes: Comprovacao[];
+  onAction: (id: string, action: ComprovacaoAction, payload?: ComprovacaoActionPayload) => Promise<void>;
+  onEdit: (comprovacao: Comprovacao) => void;
+  focusedId: string;
+}) {
   return (
     <View style={styles.stack}>
       <Card style={styles.toolbarCard}>
         <View style={styles.toolbar}>
-          <Badge tone="primary">Lastro rastreável</Badge>
-          <Text style={styles.toolbarText}>Use a busca ou o filtro de status na tabela.</Text>
+          <Badge tone="primary">Ciclo de Rastreabilidade Reversa</Badge>
+          <Text style={styles.toolbarText}>Cadastrar → conferir → destinar → certificar → comprovar, sem pular etapas.</Text>
         </View>
       </Card>
-      <ComprovacoesTable query={query} comprovacoes={comprovacoes} />
+      <ComprovacoesTable key={focusedId || 'comprovacoes'} query={query} comprovacoes={comprovacoes} onAction={onAction} onEdit={onEdit} focusedId={focusedId} />
     </View>
   );
 }
 
-function ComprovacoesTable({ query, comprovacoes, compact = false }: { query: string; comprovacoes: Comprovacao[]; compact?: boolean }) {
+function ComprovacoesTable({
+  query,
+  comprovacoes,
+  compact = false,
+  onAction,
+  onEdit,
+  focusedId = '',
+}: {
+  query: string;
+  comprovacoes: Comprovacao[];
+  compact?: boolean;
+  onAction?: (id: string, action: ComprovacaoAction, payload?: ComprovacaoActionPayload) => Promise<void>;
+  onEdit?: (comprovacao: Comprovacao) => void;
+  focusedId?: string;
+}) {
   const [statusFilter, setStatusFilter] = useState<ComprovacaoStatus | 'todos'>('todos');
   const [sortBy, setSortBy] = useState<ComprovacaoSort>('recentes');
   const filtered = useMemo(
     () =>
       [...comprovacoes]
         .filter((item) => {
-          const text = normalizeSearch(`${item.id} ${item.material} ${item.parceiro} ${item.tipo}`);
+          const text = normalizeSearch(`${item.id} ${item.material} ${item.parceiro} ${item.tipo} ${statusLabel(item.status)}`);
           const matchesText = text.includes(normalizeSearch(query));
           const matchesStatus = statusFilter === 'todos' || item.status === statusFilter;
           return matchesText && matchesStatus;
@@ -591,7 +687,7 @@ function ComprovacoesTable({ query, comprovacoes, compact = false }: { query: st
       </View>
       <View style={styles.table}>
         {filtered.map((item) => (
-          <ComprovacaoRow key={item.id} item={item} compact={compact} />
+          <ComprovacaoRow key={item.id} item={item} compact={compact} focused={item.id === focusedId} onAction={onAction} onEdit={onEdit} />
         ))}
         {filtered.length === 0 ? <Text style={styles.emptyText}>Nenhuma comprovação encontrada para este filtro.</Text> : null}
       </View>
@@ -601,9 +697,16 @@ function ComprovacoesTable({ query, comprovacoes, compact = false }: { query: st
 
 const statusFilterOptions: Array<{ label: string; value: ComprovacaoStatus | 'todos' }> = [
   { label: 'Todos', value: 'todos' },
-  { label: 'Verificadas', value: 'verificado' },
-  { label: 'Pendentes', value: 'pendente' },
-  { label: 'Expiradas', value: 'expirado' },
+  { label: 'Aguardando conferência', value: 'AGUARDANDO_CONFERENCIA' },
+  { label: 'Em conferência', value: 'EM_CONFERENCIA' },
+  { label: 'Conferidas', value: 'CONFERIDO' },
+  { label: 'Com divergência', value: 'CONFERENCIA_COM_DIVERGENCIA' },
+  { label: 'Aguardando destinação', value: 'AGUARDANDO_DESTINACAO' },
+  { label: 'Destinadas', value: 'DESTINADO' },
+  { label: 'Aguardando certificação', value: 'AGUARDANDO_CERTIFICACAO' },
+  { label: 'Certificadas', value: 'CERTIFICADO' },
+  { label: 'Relatório gerado', value: 'RELATORIO_GERADO' },
+  { label: 'Rejeitadas', value: 'REJEITADO' },
 ];
 
 const sortOptions: Array<{ label: string; value: ComprovacaoSort }> = [
@@ -686,14 +789,9 @@ function nextSort(sort: ComprovacaoSort) {
 }
 
 function nextStatusFilter(status: ComprovacaoStatus | 'todos') {
-  const nextStatus: Record<ComprovacaoStatus | 'todos', ComprovacaoStatus | 'todos'> = {
-    todos: 'verificado',
-    verificado: 'pendente',
-    pendente: 'expirado',
-    expirado: 'todos',
-  };
-
-  return nextStatus[status];
+  const currentIndex = statusFilterOptions.findIndex((option) => option.value === status);
+  const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % statusFilterOptions.length : 0;
+  return statusFilterOptions[nextIndex].value;
 }
 
 function sortComprovacoes(first: Comprovacao, second: Comprovacao, sortBy: ComprovacaoSort) {
@@ -724,20 +822,21 @@ function quantidadeValue(value: string) {
   return Number(value.replace(/[^\d,-]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
 }
 
+function formatEditableQuantity(value: string) {
+  const normalized = value.replace(/[^\d,.]/g, '').replace(/\./g, ',');
+  const [integer = '', ...decimalParts] = normalized.split(',');
+  const decimal = decimalParts.join('').slice(0, 3);
+  const limitedInteger = integer.slice(0, 9);
+
+  if (normalized.includes(',')) {
+    return `${limitedInteger}${limitedInteger || decimal ? ',' : ''}${decimal}`;
+  }
+
+  return limitedInteger;
+}
+
 function statusFilterLabel(status: ComprovacaoStatus | 'todos') {
-  if (status === 'verificado') {
-    return 'Verificadas';
-  }
-
-  if (status === 'pendente') {
-    return 'Pendentes';
-  }
-
-  if (status === 'expirado') {
-    return 'Expiradas';
-  }
-
-  return 'Todos';
+  return statusFilterOptions.find((option) => option.value === status)?.label ?? 'Todos';
 }
 
 function notificationColor(tone: string) {
@@ -756,40 +855,503 @@ function notificationColor(tone: string) {
   return colors.primary;
 }
 
-function ComprovacaoRow({ item, compact }: { item: Comprovacao; compact: boolean }) {
+function ComprovacaoRow({
+  item,
+  compact,
+  focused,
+  onAction,
+  onEdit,
+}: {
+  item: Comprovacao;
+  compact: boolean;
+  focused?: boolean;
+  onAction?: (id: string, action: ComprovacaoAction, payload?: ComprovacaoActionPayload) => Promise<void>;
+  onEdit?: (comprovacao: Comprovacao) => void;
+}) {
+  const [submittingAction, setSubmittingAction] = useState<ComprovacaoAction | null>(null);
+  const [pendingAction, setPendingAction] = useState<FlowAction | null>(null);
+  const actions = compact ? [] : actionsForStatus(item.status);
+  const lastHistoryEntry = lastComprovacaoHistory(item.observacoes);
+
+  async function runAction(action: ComprovacaoAction, payload: ComprovacaoActionPayload) {
+    if (!onAction || submittingAction) {
+      return;
+    }
+
+    setSubmittingAction(action);
+    try {
+      await onAction(item.id, action, payload);
+      setPendingAction(null);
+    } finally {
+      setSubmittingAction(null);
+    }
+  }
+
   return (
-    <View style={styles.tableRow}>
-      <View style={styles.tableMain}>
-        <Text style={styles.tableId}>{item.id}</Text>
-        <Text style={styles.tableSub}>{displayText(item.material)} • {displayText(item.tipo)}</Text>
-      </View>
-      {!compact ? (
-        <View style={styles.hashPill}>
-          <Text style={styles.hashText}>{item.hashLastro}</Text>
-          <Copy color={colors.muted} size={13} />
+    <>
+      <View style={[styles.tableRow, focused && styles.tableRowFocused]}>
+        <View style={styles.tableMain}>
+          <Text style={styles.tableId}>{item.id}</Text>
+          <Text style={styles.tableSub}>{displayText(item.material)} • {displayText(item.tipo)}</Text>
+          {!compact ? <Text style={styles.tableSub}>Próxima etapa: {nextStepLabel(item.status)}</Text> : null}
+          {!compact && lastHistoryEntry ? (
+            <Text style={styles.tableHistory} numberOfLines={2}>
+              Último registro: {lastHistoryEntry}
+            </Text>
+          ) : null}
         </View>
+        {!compact ? (
+          <View style={styles.hashPill}>
+            <Text style={styles.hashText}>{item.hashLastro}</Text>
+            <Copy color={colors.muted} size={13} />
+          </View>
+        ) : null}
+        <Text style={styles.tableValue}>{item.quantidade}</Text>
+        <Text style={styles.tablePartner}>{item.parceiro}</Text>
+        <StatusBadge status={item.status} />
+        {!compact && onAction ? (
+          <View style={styles.flowActions}>
+            <Text style={styles.flowActionsLabel}>Ações do ciclo</Text>
+            {onEdit ? (
+              <Button
+                variant="outline"
+                style={styles.flowActionButton}
+                textStyle={styles.flowActionText}
+                onPress={() => onEdit(item)}
+              >
+                Editar
+              </Button>
+            ) : null}
+            {actions.map((action) => (
+              <Button
+                key={action.action}
+                variant={action.variant}
+                style={styles.flowActionButton}
+                textStyle={styles.flowActionText}
+                onPress={() => setPendingAction(action)}
+              >
+                {submittingAction === action.action ? 'Aguarde...' : action.label}
+              </Button>
+            ))}
+          </View>
+        ) : null}
+      </View>
+      {pendingAction ? (
+        <ComprovacaoActionModal
+          action={pendingAction}
+          comprovacao={item}
+          submitting={submittingAction === pendingAction.action}
+          onClose={() => setPendingAction(null)}
+          onConfirm={(payload) => runAction(pendingAction.action, payload)}
+        />
       ) : null}
-      <Text style={styles.tableValue}>{item.quantidade}</Text>
-      <Text style={styles.tablePartner}>{item.parceiro}</Text>
-      <StatusBadge status={item.status} />
-    </View>
+    </>
   );
 }
 
 function StatusBadge({ status }: { status: Comprovacao['status'] }) {
-  const tone = status === 'verificado' ? 'success' : status === 'pendente' ? 'accent' : 'danger';
-  const label = status === 'verificado' ? 'Verificado' : status === 'pendente' ? 'Pendente' : 'Expirado';
-  const Icon = status === 'verificado' ? CheckCircle2 : Clock;
+  const tone = statusTone(status);
+  const color = statusColor(status);
+  const done = status === 'CERTIFICADO' || status === 'RELATORIO_GERADO' || status === 'DESTINADO';
   return (
     <Badge tone={tone}>
       <View style={styles.statusContent}>
-        <Icon color={status === 'verificado' ? colors.success : status === 'pendente' ? colors.accent : colors.danger} size={12} />
-        <Text style={[styles.statusText, { color: status === 'verificado' ? colors.success : status === 'pendente' ? colors.accent : colors.danger }]}>
-          {label}
-        </Text>
+        {done ? <CheckCircle2 color={color} size={12} /> : <Clock color={color} size={12} />}
+        <Text style={[styles.statusText, { color }]}>{statusLabel(status)}</Text>
       </View>
     </Badge>
   );
+}
+
+function ComprovacaoActionModal({
+  action,
+  comprovacao,
+  submitting,
+  onClose,
+  onConfirm,
+}: {
+  action: FlowAction;
+  comprovacao: Comprovacao;
+  submitting: boolean;
+  onClose: () => void;
+  onConfirm: (payload: ComprovacaoActionPayload) => Promise<void>;
+}) {
+  const config = actionConfig(action.action);
+  const [responsavel, setResponsavel] = useState(comprovacao.parceiro);
+  const [destino, setDestino] = useState('');
+  const [documento, setDocumento] = useState('');
+  const [observacoes, setObservacoes] = useState('');
+
+  async function submit() {
+    if (submitting) {
+      return;
+    }
+
+    await onConfirm({
+      responsavel: responsavel.trim(),
+      destino: destino.trim(),
+      documento: documento.trim(),
+      observacoes: observacoes.trim(),
+    });
+  }
+
+  return (
+    <Modal transparent animationType="fade" visible onRequestClose={onClose}>
+      <View style={styles.overlay}>
+        <Card style={styles.editModal}>
+          <View style={styles.modalHeader}>
+            <View>
+              <Text style={styles.cardTitle}>{action.label}</Text>
+              <Text style={styles.modalSubtitle}>{comprovacao.id} • {displayText(comprovacao.material)}</Text>
+            </View>
+            <Pressable style={styles.closeButton} onPress={onClose}>
+              <X color={colors.text} size={18} />
+            </Pressable>
+          </View>
+
+          <View style={styles.editForm}>
+            <Text style={styles.actionHint}>{config.hint}</Text>
+            <View style={styles.editField}>
+              <Text style={styles.profileLabel}>Responsável</Text>
+              <Input value={responsavel} onChangeText={setResponsavel} maxLength={120} />
+            </View>
+            {config.destination ? (
+              <View style={styles.editField}>
+                <Text style={styles.profileLabel}>Destino</Text>
+                <Input
+                  value={destino}
+                  onChangeText={setDestino}
+                  maxLength={180}
+                  placeholder={config.destination}
+                />
+              </View>
+            ) : null}
+            {config.document ? (
+              <View style={styles.editField}>
+                <Text style={styles.profileLabel}>Documento / evidência</Text>
+                <Input
+                  value={documento}
+                  onChangeText={setDocumento}
+                  maxLength={180}
+                  placeholder={config.document}
+                />
+              </View>
+            ) : null}
+            <View style={styles.editField}>
+              <Text style={styles.profileLabel}>Observações da etapa</Text>
+              <TextInput
+                multiline
+                placeholder={config.observations}
+                placeholderTextColor={colors.muted}
+                value={observacoes}
+                onChangeText={setObservacoes}
+                maxLength={500}
+                style={styles.editTextArea}
+              />
+            </View>
+            <View style={styles.editActions}>
+              <Button variant="outline" onPress={onClose}>Cancelar</Button>
+              <Button onPress={submit}>{submitting ? 'Registrando...' : 'Confirmar etapa'}</Button>
+            </View>
+          </View>
+        </Card>
+      </View>
+    </Modal>
+  );
+}
+
+function EditComprovacaoModal({
+  comprovacao,
+  materiais,
+  parceiros,
+  onClose,
+  onSave,
+}: {
+  comprovacao: Comprovacao;
+  materiais: DashboardData['materiais'];
+  parceiros: DashboardData['parceiros'];
+  onClose: () => void;
+  onSave: (id: string, payload: UpdateComprovacaoPayload) => Promise<void>;
+}) {
+  const materialOptions = uniqueValues(materiais.map((item) => item.material));
+  const parceiroOptions = uniqueValues(parceiros.map((item) => item.parceiro));
+  const [material, setMaterial] = useState(comprovacao.material || materialOptions[0] || '');
+  const [quantidadeKg, setQuantidadeKg] = useState(formatEditableQuantity(comprovacao.quantidade));
+  const [tipo, setTipo] = useState(comprovacao.tipo);
+  const [parceiro, setParceiro] = useState(comprovacao.parceiro || parceiroOptions[0] || '');
+  const [observacoes, setObservacoes] = useState(comprovacao.observacoes ?? '');
+  const [submitting, setSubmitting] = useState(false);
+
+  async function submit() {
+    if (submitting) {
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await onSave(comprovacao.id, {
+        material,
+        quantidadeKg: quantidadeValue(`${quantidadeKg} kg`),
+        tipo: tipo.trim(),
+        parceiro,
+        observacoes: observacoes.trim(),
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Modal transparent animationType="fade" visible onRequestClose={onClose}>
+      <View style={styles.overlay}>
+        <Card style={styles.editModal}>
+          <View style={styles.modalHeader}>
+            <View>
+              <Text style={styles.cardTitle}>Editar comprovação</Text>
+              <Text style={styles.modalSubtitle}>{comprovacao.id} • {statusLabel(comprovacao.status)}</Text>
+            </View>
+            <Pressable style={styles.closeButton} onPress={onClose}>
+              <X color={colors.text} size={18} />
+            </Pressable>
+          </View>
+
+          <View style={styles.editForm}>
+            <View style={styles.editField}>
+              <Text style={styles.profileLabel}>Material</Text>
+              <EditOptionSelect options={materialOptions} value={material} onChange={setMaterial} />
+            </View>
+            <View style={styles.editField}>
+              <Text style={styles.profileLabel}>Quantidade (kg)</Text>
+              <Input
+                value={quantidadeKg}
+                onChangeText={(value) => setQuantidadeKg(formatEditableQuantity(value))}
+                keyboardType="decimal-pad"
+                maxLength={13}
+              />
+            </View>
+            <View style={styles.editField}>
+              <Text style={styles.profileLabel}>Tipo de operação</Text>
+              <Input value={tipo} onChangeText={setTipo} maxLength={80} />
+            </View>
+            <View style={styles.editField}>
+              <Text style={styles.profileLabel}>Parceiro responsável</Text>
+              <EditOptionSelect options={parceiroOptions} value={parceiro} onChange={setParceiro} />
+            </View>
+            <View style={styles.editField}>
+              <Text style={styles.profileLabel}>Observações e histórico</Text>
+              <TextInput
+                multiline
+                placeholder="Informações adicionais..."
+                placeholderTextColor={colors.muted}
+                value={observacoes}
+                onChangeText={setObservacoes}
+                maxLength={500}
+                style={styles.editTextArea}
+              />
+            </View>
+            <View style={styles.editActions}>
+              <Button variant="outline" onPress={onClose}>Cancelar</Button>
+              <Button onPress={submit}>{submitting ? 'Salvando...' : 'Salvar alterações'}</Button>
+            </View>
+          </View>
+        </Card>
+      </View>
+    </Modal>
+  );
+}
+
+function EditOptionSelect({ options, value, onChange }: { options: string[]; value: string; onChange: (value: string) => void }) {
+  if (!options.length) {
+    return <Input value={value} onChangeText={onChange} maxLength={140} />;
+  }
+
+  return (
+    <View style={styles.editOptionGroup}>
+      {options.map((option) => {
+        const selected = option === value;
+
+        return (
+          <Pressable
+            key={option}
+            style={[styles.editOption, selected && styles.editOptionSelected]}
+            onPress={() => onChange(option)}
+          >
+            <Text style={[styles.editOptionText, selected && styles.editOptionTextSelected]} numberOfLines={1}>
+              {option}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+function uniqueValues(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+type FlowAction = {
+  action: ComprovacaoAction;
+  label: string;
+  variant?: 'primary' | 'ghost' | 'outline';
+};
+
+function actionsForStatus(status: ComprovacaoStatus): FlowAction[] {
+  const map: Record<ComprovacaoStatus, FlowAction[]> = {
+    CADASTRADO: [{ action: 'INICIAR_CONFERENCIA', label: 'Iniciar conferência' }],
+    AGUARDANDO_CONFERENCIA: [
+      { action: 'INICIAR_CONFERENCIA', label: 'Iniciar conferência' },
+      { action: 'CONFERIR', label: 'Conferir' },
+      { action: 'REGISTRAR_DIVERGENCIA', label: 'Divergência', variant: 'outline' },
+    ],
+    EM_CONFERENCIA: [
+      { action: 'CONFERIR', label: 'Conferir' },
+      { action: 'REGISTRAR_DIVERGENCIA', label: 'Divergência', variant: 'outline' },
+      { action: 'REJEITAR', label: 'Rejeitar', variant: 'outline' },
+    ],
+    CONFERIDO: [
+      { action: 'LIBERAR_DESTINACAO', label: 'Liberar destinação' },
+      { action: 'REGISTRAR_DIVERGENCIA', label: 'Divergência', variant: 'outline' },
+    ],
+    CONFERENCIA_COM_DIVERGENCIA: [
+      { action: 'APROVAR_DIVERGENCIA', label: 'Aprovar' },
+      { action: 'REJEITAR', label: 'Rejeitar', variant: 'outline' },
+    ],
+    REJEITADO: [],
+    AGUARDANDO_DESTINACAO: [{ action: 'REGISTRAR_DESTINO', label: 'Registrar destino' }],
+    DESTINADO: [{ action: 'SOLICITAR_CERTIFICADO', label: 'Solicitar certificado' }],
+    AGUARDANDO_CERTIFICACAO: [{ action: 'CERTIFICAR', label: 'Certificar' }],
+    CERTIFICADO: [{ action: 'GERAR_RELATORIO', label: 'Gerar relatório' }],
+    RELATORIO_GERADO: [],
+    CANCELADO: [],
+  };
+
+  return map[status] ?? [];
+}
+
+function actionConfig(action: ComprovacaoAction) {
+  const configs: Record<ComprovacaoAction, {
+    hint: string;
+    destination?: string;
+    document?: string;
+    observations: string;
+  }> = {
+    INICIAR_CONFERENCIA: {
+      hint: 'Registre quem iniciou a conferência e a primeira evidência operacional.',
+      observations: 'Ex.: QR Code lido, local, condição inicial do resíduo.',
+    },
+    CONFERIR: {
+      hint: 'Registre os dados reais usados para validar o resíduo contra o esperado.',
+      document: 'Foto, ticket de pesagem ou evidência da conferência',
+      observations: 'Ex.: peso real, quantidade, estado do material e fotos anexadas.',
+    },
+    REGISTRAR_DIVERGENCIA: {
+      hint: 'Explique o que não bateu com o cadastro esperado. A divergência ficará no histórico.',
+      document: 'Foto, laudo ou evidência da divergência',
+      observations: 'Ex.: peso divergente, material incompatível, QR Code duplicado.',
+    },
+    APROVAR_DIVERGENCIA: {
+      hint: 'Registre a justificativa da aprovação manual feita pelo responsável.',
+      document: 'Autorização, parecer ou evidência de aprovação',
+      observations: 'Ex.: divergência aceita por tolerância operacional.',
+    },
+    REJEITAR: {
+      hint: 'Registre por que a comprovação foi rejeitada.',
+      document: 'Evidência da rejeição, se houver',
+      observations: 'Ex.: cooperativa não autorizada, material incorreto, ausência de evidência.',
+    },
+    LIBERAR_DESTINACAO: {
+      hint: 'Registre a liberação para que o material siga para destinação.',
+      observations: 'Ex.: conferência validada e carga liberada para transporte.',
+    },
+    REGISTRAR_DESTINO: {
+      hint: 'Registre o destino final ou intermediário e os comprovantes de transporte.',
+      destination: 'Ex.: Cooperativa homologada, indústria recicladora, coprocessamento',
+      document: 'NF, manifesto, CTR, comprovante de recebimento',
+      observations: 'Ex.: quantidade enviada, quantidade recebida, data e responsável.',
+    },
+    SOLICITAR_CERTIFICADO: {
+      hint: 'Registre para quem o certificado foi solicitado e quais evidências faltam.',
+      destination: 'Ex.: Cooperativa ou indústria responsável pelo certificado',
+      document: 'Protocolo, pedido, e-mail ou referência interna',
+      observations: 'Ex.: certificado de reciclagem solicitado após recebimento.',
+    },
+    CERTIFICAR: {
+      hint: 'Vincule a comprovação documental que fecha a rastreabilidade do resíduo.',
+      destination: 'Ex.: Destinação final comprovada',
+      document: 'Certificado, laudo, NF ou comprovante de transformação',
+      observations: 'Ex.: certificado recebido, período coberto e quantidade certificada.',
+    },
+    GERAR_RELATORIO: {
+      hint: 'Registre o relatório gerado para auditoria, fiscalização ou fechamento interno.',
+      document: 'Código, nome ou período do relatório',
+      observations: 'Ex.: relatório comprobatório emitido para o mês de apuração.',
+    },
+    CANCELAR: {
+      hint: 'Registre a razão do cancelamento mantendo a trilha de auditoria.',
+      document: 'Evidência do cancelamento, se houver',
+      observations: 'Ex.: cadastro duplicado ou operação encerrada antes da conferência.',
+    },
+  };
+
+  return configs[action];
+}
+
+function lastComprovacaoHistory(value?: string | null) {
+  return value?.split('\n').map((line) => line.trim()).filter(Boolean).at(-1) ?? '';
+}
+
+function statusLabel(status: ComprovacaoStatus) {
+  const labels: Record<ComprovacaoStatus, string> = {
+    CADASTRADO: 'Cadastrado',
+    AGUARDANDO_CONFERENCIA: 'Aguardando conferência',
+    EM_CONFERENCIA: 'Em conferência',
+    CONFERIDO: 'Conferido',
+    CONFERENCIA_COM_DIVERGENCIA: 'Com divergência',
+    REJEITADO: 'Rejeitado',
+    AGUARDANDO_DESTINACAO: 'Aguardando destinação',
+    DESTINADO: 'Destinado',
+    AGUARDANDO_CERTIFICACAO: 'Aguardando certificação',
+    CERTIFICADO: 'Certificado',
+    RELATORIO_GERADO: 'Relatório gerado',
+    CANCELADO: 'Cancelado',
+  };
+
+  return labels[status] ?? status;
+}
+
+function nextStepLabel(status: ComprovacaoStatus) {
+  const actions = actionsForStatus(status);
+  return actions[0]?.label ?? 'Ciclo concluído';
+}
+
+function statusTone(status: ComprovacaoStatus): 'primary' | 'accent' | 'success' | 'warning' | 'danger' | 'muted' {
+  if (status === 'CERTIFICADO' || status === 'RELATORIO_GERADO' || status === 'DESTINADO') {
+    return 'success';
+  }
+  if (status === 'CONFERENCIA_COM_DIVERGENCIA' || status === 'AGUARDANDO_CERTIFICACAO') {
+    return 'warning';
+  }
+  if (status === 'REJEITADO' || status === 'CANCELADO') {
+    return 'danger';
+  }
+  if (status === 'EM_CONFERENCIA' || status === 'CONFERIDO' || status === 'AGUARDANDO_DESTINACAO') {
+    return 'accent';
+  }
+  return 'primary';
+}
+
+function statusColor(status: ComprovacaoStatus) {
+  const tone = statusTone(status);
+  return tone === 'success'
+    ? colors.success
+    : tone === 'warning'
+      ? colors.warning
+      : tone === 'danger'
+        ? colors.danger
+        : tone === 'accent'
+          ? colors.accent
+          : colors.primary;
 }
 
 function ImpactMetrics({ metrics }: { metrics: DashboardData['impactMetrics'] }) {
@@ -982,6 +1544,86 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     flex: 1,
     flexDirection: 'row',
+  },
+  overlay: {
+    alignItems: 'center',
+    backgroundColor: '#000000aa',
+    flex: 1,
+    justifyContent: 'center',
+    padding: 18,
+  },
+  editModal: {
+    maxWidth: 620,
+    width: '100%',
+  },
+  modalHeader: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 14,
+    justifyContent: 'space-between',
+  },
+  modalSubtitle: {
+    color: colors.muted,
+    fontSize: 12,
+    marginTop: 4,
+  },
+  closeButton: {
+    alignItems: 'center',
+    backgroundColor: colors.cardSoft,
+    borderRadius: 8,
+    height: 34,
+    justifyContent: 'center',
+    width: 34,
+  },
+  editForm: {
+    gap: 13,
+    marginTop: 16,
+  },
+  editField: {
+    gap: 7,
+  },
+  editTextArea: {
+    backgroundColor: colors.cardSoft,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    color: colors.text,
+    height: 108,
+    padding: 12,
+    textAlignVertical: 'top',
+  },
+  editActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'flex-end',
+  },
+  editOptionGroup: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  editOption: {
+    backgroundColor: colors.cardSoft,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    maxWidth: '100%',
+    minHeight: 38,
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+  },
+  editOptionSelected: {
+    backgroundColor: `${colors.primary}22`,
+    borderColor: colors.primary,
+  },
+  editOptionText: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  editOptionTextSelected: {
+    color: colors.text,
   },
   sidebar: {
     backgroundColor: colors.sidebar,
@@ -1268,6 +1910,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 12,
   },
+  tableRowFocused: {
+    borderColor: colors.primary,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+  },
   tableMain: {
     flex: 1.4,
     minWidth: 130,
@@ -1281,6 +1929,12 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 12,
     marginTop: 3,
+  },
+  tableHistory: {
+    color: colors.text,
+    fontSize: 11,
+    lineHeight: 15,
+    marginTop: 6,
   },
   hashPill: {
     alignItems: 'center',
@@ -1306,6 +1960,34 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 13,
     minWidth: 120,
+  },
+  flowActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'flex-end',
+    minWidth: 260,
+  },
+  flowActionsLabel: {
+    color: colors.muted,
+    fontSize: 10,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    width: '100%',
+  },
+  flowActionButton: {
+    minHeight: 34,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  flowActionText: {
+    fontSize: 12,
+  },
+  actionHint: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 18,
   },
   statusContent: {
     alignItems: 'center',
