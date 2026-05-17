@@ -2,16 +2,19 @@ import { createElement, useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import {
   Bell,
+  Building2,
   ChevronDown,
   CheckCircle2,
   Clock,
   Copy,
   FileCheck,
   Leaf,
+  LogOut,
   Recycle,
   Search,
   User,
   Wind,
+  X,
 } from 'lucide-react-native';
 
 import { DistributionChart, VolumeChart } from '../components/Charts';
@@ -20,20 +23,26 @@ import { Badge, Button, Card, colors, Input, Progress, SectionTitle, StatCard } 
 import {
   getAjuda,
   getCertificados,
+  getCompanyProfile,
   getComprovacoes,
   getConfiguracoes,
   getDashboard,
   getMateriais,
+  getNotifications,
   getParceiros,
   getRelatorios,
+  logout,
+  markNotificationRead,
 } from '../api/client';
 import {
   bottomNavItems,
   Comprovacao,
   ComprovacaoStatus,
+  CompanyProfile,
   DashboardData,
   emptyDashboard,
   HelpItem,
+  NotificationItem,
   navItems,
   PageKey,
   SettingItem,
@@ -41,11 +50,16 @@ import {
 
 type ComprovacaoSort = 'recentes' | 'antigas' | 'maior-peso' | 'menor-peso' | 'material' | 'parceiro';
 
-export function HomeScreen() {
+export function HomeScreen({ onLoggedOut }: { onLoggedOut: () => void }) {
   const [activePage, setActivePage] = useState<PageKey>('overview');
   const [query, setQuery] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [dashboard, setDashboard] = useState<DashboardData>(emptyDashboard);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [loggedOut, setLoggedOut] = useState(false);
   const { width } = useWindowDimensions();
   const isWide = width >= 980;
 
@@ -131,6 +145,56 @@ export function HomeScreen() {
   const pageMetadata = dashboard.shell.pages.find((item) => item.key === activePage);
   const pageTitle = displayText(pageMetadata?.title ?? [...navItems, ...bottomNavItems].find((item) => item.key === activePage)?.title ?? 'Visão Geral');
   const canCreateComprovacao = activePage === 'comprovacoes';
+  const unreadNotifications = notifications.filter((item) => !item.read).length || dashboard.shell.notificationsCount;
+
+  async function openNotifications() {
+    const items = await getNotifications();
+    setNotifications(items);
+    setNotificationsOpen(true);
+    setProfileOpen(false);
+  }
+
+  async function readNotification(id: string) {
+    const updated = await markNotificationRead(id);
+    setNotifications((current) => current.map((item) => (item.id === id ? updated : item)));
+    setDashboard((current) => ({
+      ...current,
+      shell: {
+        ...current.shell,
+        notificationsCount: Math.max(0, current.shell.notificationsCount - 1),
+      },
+    }));
+  }
+
+  async function openProfile() {
+    const profile = await getCompanyProfile();
+    setCompanyProfile(profile);
+    setProfileOpen(true);
+    setNotificationsOpen(false);
+  }
+
+  async function handleLogout() {
+    const response = await logout();
+    if (response.loggedOut) {
+      onLoggedOut();
+      setLoggedOut(true);
+      setProfileOpen(false);
+      setNotificationsOpen(false);
+      setDashboard(emptyDashboard);
+    }
+  }
+
+  if (loggedOut) {
+    return (
+      <View style={styles.logoutScreen}>
+        <Card style={styles.logoutCard}>
+          <LogOut color={colors.primary} size={28} />
+          <Text style={styles.logoutTitle}>Sessão encerrada</Text>
+          <Text style={styles.logoutText}>Use o fluxo de autenticação da aplicação para entrar novamente.</Text>
+        </Card>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.app}>
@@ -146,9 +210,27 @@ export function HomeScreen() {
           isWide={isWide}
           query={query}
           dashboard={dashboard}
+          notificationsCount={unreadNotifications}
           onChangeQuery={setQuery}
+          onOpenNotifications={openNotifications}
+          onOpenProfile={openProfile}
+          onLogout={handleLogout}
           onNavigate={setActivePage}
         />
+        {notificationsOpen ? (
+          <NotificationsPanel
+            notifications={notifications}
+            onClose={() => setNotificationsOpen(false)}
+            onRead={readNotification}
+          />
+        ) : null}
+        {profileOpen ? (
+          <ProfilePanel
+            profile={companyProfile}
+            onClose={() => setProfileOpen(false)}
+            onLogout={handleLogout}
+          />
+        ) : null}
         <ScrollView style={styles.content} contentContainerStyle={styles.contentInner}>
           <View style={styles.pageHeader}>
             <SectionTitle title={pageTitle} subtitle={displayText(pageMetadata?.subtitle)} />
@@ -219,14 +301,22 @@ function TopHeader({
   isWide,
   query,
   dashboard,
+  notificationsCount,
   onChangeQuery,
+  onOpenNotifications,
+  onOpenProfile,
+  onLogout,
   onNavigate,
 }: {
   activePage: PageKey;
   isWide: boolean;
   query: string;
   dashboard: DashboardData;
+  notificationsCount: number;
   onChangeQuery: (value: string) => void;
+  onOpenNotifications: () => void;
+  onOpenProfile: () => void;
+  onLogout: () => void;
   onNavigate: (page: PageKey) => void;
 }) {
   if (!isWide) {
@@ -242,12 +332,18 @@ function TopHeader({
             style={styles.searchInput}
           />
         </View>
-        <View style={styles.iconButton}>
+        <Pressable style={styles.iconButton} onPress={onOpenNotifications}>
           <Bell color={colors.text} size={18} />
             <View style={styles.notificationDot}>
-              <Text style={styles.notificationText}>{dashboard.shell.notificationsCount}</Text>
+              <Text style={styles.notificationText}>{notificationsCount}</Text>
             </View>
-          </View>
+          </Pressable>
+          <Pressable style={styles.iconButton} onPress={onOpenProfile}>
+            <User color={colors.primary} size={18} />
+          </Pressable>
+          <Pressable style={styles.iconButton} onPress={onLogout}>
+            <LogOut color={colors.text} size={18} />
+          </Pressable>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.mobileNav}>
           {[...navItems, ...bottomNavItems].map((item) => (
@@ -276,20 +372,96 @@ function TopHeader({
         />
       </View>
       <View style={styles.headerActions}>
-        <View style={styles.iconButton}>
+        <Pressable style={styles.iconButton} onPress={onOpenNotifications}>
           <Bell color={colors.text} size={18} />
           <View style={styles.notificationDot}>
-            <Text style={styles.notificationText}>{dashboard.shell.notificationsCount}</Text>
+            <Text style={styles.notificationText}>{notificationsCount}</Text>
           </View>
-        </View>
-        <View style={styles.userChip}>
+        </Pressable>
+        <Pressable style={styles.userChip} onPress={onOpenProfile}>
           <User color={colors.primary} size={16} />
           <View>
             <Text style={styles.userName}>{dashboard.shell.user.name}</Text>
             <Text style={styles.userRole}>{dashboard.shell.user.role}</Text>
           </View>
-        </View>
+        </Pressable>
+        <Pressable style={styles.iconButton} onPress={onLogout}>
+          <LogOut color={colors.text} size={18} />
+        </Pressable>
       </View>
+    </View>
+  );
+}
+
+function NotificationsPanel({
+  notifications,
+  onClose,
+  onRead,
+}: {
+  notifications: NotificationItem[];
+  onClose: () => void;
+  onRead: (id: string) => void;
+}) {
+  return (
+    <Card style={styles.floatingPanel}>
+      <View style={styles.panelHeader}>
+        <Text style={styles.cardTitle}>Notificações</Text>
+        <Pressable style={styles.panelClose} onPress={onClose}>
+          <X color={colors.text} size={16} />
+        </Pressable>
+      </View>
+      {notifications.length === 0 ? <Text style={styles.emptyText}>Nenhuma notificação.</Text> : null}
+      {notifications.map((item) => (
+        <Pressable key={item.id} style={[styles.notificationItem, item.read && styles.notificationItemRead]} onPress={() => onRead(item.id)}>
+          <View style={[styles.activityDot, { backgroundColor: item.read ? colors.muted : notificationColor(item.tone) }]} />
+          <View style={styles.notificationTextBlock}>
+            <Text style={styles.notificationTitle}>{displayText(item.title)}</Text>
+            <Text style={styles.notificationMessage}>{displayText(item.message)}</Text>
+          </View>
+          {!item.read ? <Badge tone="accent">Nova</Badge> : null}
+        </Pressable>
+      ))}
+    </Card>
+  );
+}
+
+function ProfilePanel({
+  profile,
+  onClose,
+  onLogout,
+}: {
+  profile: CompanyProfile | null;
+  onClose: () => void;
+  onLogout: () => void;
+}) {
+  return (
+    <Card style={styles.floatingPanel}>
+      <View style={styles.panelHeader}>
+        <View style={styles.cardTitleRow}>
+          <Building2 color={colors.primary} size={18} />
+          <Text style={styles.cardTitle}>Perfil da empresa</Text>
+        </View>
+        <Pressable style={styles.panelClose} onPress={onClose}>
+          <X color={colors.text} size={16} />
+        </Pressable>
+      </View>
+      <ProfileLine label="Empresa" value={profile?.companyName} />
+      <ProfileLine label="Documento" value={profile?.document} />
+      <ProfileLine label="E-mail" value={profile?.email} />
+      <ProfileLine label="Telefone" value={profile?.phone} />
+      <ProfileLine label="Endereço" value={displayText(profile?.address)} />
+      <ProfileLine label="Plano" value={profile?.plan} />
+      <ProfileLine label="Status" value={profile?.status} />
+      <Button variant="outline" onPress={onLogout}>Sair</Button>
+    </Card>
+  );
+}
+
+function ProfileLine({ label, value }: { label: string; value?: string }) {
+  return (
+    <View style={styles.profileLine}>
+      <Text style={styles.profileLabel}>{label}</Text>
+      <Text style={styles.profileValue}>{value || '-'}</Text>
     </View>
   );
 }
@@ -566,6 +738,22 @@ function statusFilterLabel(status: ComprovacaoStatus | 'todos') {
   }
 
   return 'Todos';
+}
+
+function notificationColor(tone: string) {
+  if (tone === 'success') {
+    return colors.success;
+  }
+
+  if (tone === 'warning') {
+    return colors.warning;
+  }
+
+  if (tone === 'danger') {
+    return colors.danger;
+  }
+
+  return colors.primary;
 }
 
 function ComprovacaoRow({ item, compact }: { item: Comprovacao; compact: boolean }) {
@@ -1262,5 +1450,94 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 14,
     lineHeight: 21,
+  },
+  floatingPanel: {
+    gap: 12,
+    maxWidth: 420,
+    position: 'absolute',
+    right: 18,
+    top: 78,
+    width: '92%',
+    zIndex: 10,
+  },
+  panelHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  panelClose: {
+    alignItems: 'center',
+    backgroundColor: colors.cardSoft,
+    borderRadius: 8,
+    height: 32,
+    justifyContent: 'center',
+    width: 32,
+  },
+  notificationItem: {
+    alignItems: 'flex-start',
+    backgroundColor: colors.cardSoft,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    padding: 12,
+  },
+  notificationItemRead: {
+    opacity: 0.68,
+  },
+  notificationTextBlock: {
+    flex: 1,
+    gap: 4,
+  },
+  notificationTitle: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  notificationMessage: {
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  profileLine: {
+    borderBottomColor: `${colors.border}88`,
+    borderBottomWidth: 1,
+    gap: 3,
+    paddingBottom: 9,
+  },
+  profileLabel: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  profileValue: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  logoutScreen: {
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    flex: 1,
+    justifyContent: 'center',
+    padding: 20,
+  },
+  logoutCard: {
+    alignItems: 'flex-start',
+    gap: 12,
+    maxWidth: 380,
+    width: '100%',
+  },
+  logoutTitle: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  logoutText: {
+    color: colors.muted,
+    fontSize: 14,
+    lineHeight: 20,
   },
 });

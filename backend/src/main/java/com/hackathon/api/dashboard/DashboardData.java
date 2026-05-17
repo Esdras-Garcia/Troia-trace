@@ -36,6 +36,30 @@ public record DashboardData(
     public record UserProfile(String name, String role) {
     }
 
+    public record CompanyProfile(
+        String companyName,
+        String document,
+        String email,
+        String phone,
+        String address,
+        String plan,
+        String status
+    ) {
+    }
+
+    public record NotificationItem(
+        String id,
+        String title,
+        String message,
+        String createdAt,
+        boolean read,
+        String tone
+    ) {
+    }
+
+    public record LogoutResponse(boolean loggedOut, String message) {
+    }
+
     public record PageMetadata(String key, String title, String subtitle, String section) {
     }
 

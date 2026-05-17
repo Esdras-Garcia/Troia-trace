@@ -1,11 +1,14 @@
 package com.hackathon.api.dashboard;
 
 import com.hackathon.api.dashboard.DashboardData.ComprovacaoResponse;
+import com.hackathon.api.dashboard.DashboardData.CompanyProfile;
 import com.hackathon.api.dashboard.DashboardData.CreateComprovacaoRequest;
 import com.hackathon.api.dashboard.DashboardData.CertificateItem;
 import com.hackathon.api.dashboard.DashboardData.HelpItem;
+import com.hackathon.api.dashboard.DashboardData.LogoutResponse;
 import com.hackathon.api.dashboard.DashboardData.MaterialItem;
 import com.hackathon.api.dashboard.DashboardData.AppShellData;
+import com.hackathon.api.dashboard.DashboardData.NotificationItem;
 import com.hackathon.api.dashboard.DashboardData.PartnerItem;
 import com.hackathon.api.dashboard.DashboardData.ReportItem;
 import com.hackathon.api.dashboard.DashboardData.SettingItem;
@@ -39,6 +42,26 @@ public class DashboardController {
     @GetMapping("/app-shell")
     AppShellData appShell() {
         return dashboardService.appShell();
+    }
+
+    @GetMapping("/profile/company")
+    CompanyProfile companyProfile() {
+        return dashboardService.companyProfile();
+    }
+
+    @GetMapping("/notifications")
+    List<NotificationItem> notifications() {
+        return dashboardService.notifications();
+    }
+
+    @PostMapping("/notifications/{id}/read")
+    NotificationItem markNotificationRead(@org.springframework.web.bind.annotation.PathVariable String id) {
+        return dashboardService.markNotificationRead(id);
+    }
+
+    @PostMapping("/auth/logout")
+    LogoutResponse logout() {
+        return dashboardService.logout();
     }
 
     @GetMapping("/comprovacoes")

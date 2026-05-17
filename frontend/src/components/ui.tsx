@@ -10,6 +10,7 @@ import {
   TextStyle,
   View,
   ViewStyle,
+  TextInputProps,
 } from 'react-native';
 
 export const colors = {
@@ -76,12 +77,13 @@ export function Input({
   onChangeText,
   placeholder,
   style,
+  ...props
 }: {
   value?: string;
   onChangeText?: (value: string) => void;
   placeholder?: string;
   style?: StyleProp<ViewStyle>;
-}) {
+} & Omit<TextInputProps, 'style' | 'value' | 'onChangeText' | 'placeholder'>) {
   return (
     <TextInput
       value={value}
@@ -89,6 +91,7 @@ export function Input({
       placeholder={placeholder}
       placeholderTextColor={colors.muted}
       style={[styles.input, style]}
+      {...props}
     />
   );
 }

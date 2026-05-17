@@ -2,7 +2,7 @@ spring:
   application:
     name: hackathon-api
   datasource:
-    url: ${DATABASE_URL:jdbc:h2:file:./data/hackathon;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH}
+    url: ${DATABASE_URL:jdbc:h2:file:./data/hackathon;AUTO_SERVER=TRUE;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH}
     username: ${DATABASE_USERNAME:sa}
     password: ${DATABASE_PASSWORD:}
     driver-class-name: ${DATABASE_DRIVER:org.h2.Driver}

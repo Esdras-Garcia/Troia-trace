@@ -21,16 +21,20 @@ public class User {
     @Column(nullable = false, unique = true, length = 180)
     private String email;
 
+    @Column(name = "password_hash", nullable = false, length = 100)
+    private String passwordHash;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
     protected User() {
     }
 
-    public User(String name, String email) {
+    public User(String name, String email, String passwordHash) {
         this.id = UUID.randomUUID();
         this.name = name;
         this.email = email;
+        this.passwordHash = passwordHash;
         this.createdAt = OffsetDateTime.now();
     }
 
@@ -44,6 +48,10 @@ public class User {
 
     public String getEmail() {
         return email;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
     }
 
     public OffsetDateTime getCreatedAt() {

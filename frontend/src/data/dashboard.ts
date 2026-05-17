@@ -129,6 +129,30 @@ export type AppShellData = {
   pages: PageMetadata[];
 };
 
+export type CompanyProfile = {
+  companyName: string;
+  document: string;
+  email: string;
+  phone: string;
+  address: string;
+  plan: string;
+  status: string;
+};
+
+export type NotificationItem = {
+  id: string;
+  title: string;
+  message: string;
+  createdAt: string;
+  read: boolean;
+  tone: string;
+};
+
+export type LogoutResponse = {
+  loggedOut: boolean;
+  message: string;
+};
+
 export type DashboardData = {
   shell: AppShellData;
   stats: Stat[];

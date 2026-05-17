@@ -7,11 +7,14 @@ import com.hackathon.api.dashboard.DashboardData.AppShellData;
 import com.hackathon.api.dashboard.DashboardData.CertificateItem;
 import com.hackathon.api.dashboard.DashboardData.Comprovacao;
 import com.hackathon.api.dashboard.DashboardData.ComprovacaoResponse;
+import com.hackathon.api.dashboard.DashboardData.CompanyProfile;
 import com.hackathon.api.dashboard.DashboardData.CreateComprovacaoRequest;
 import com.hackathon.api.dashboard.DashboardData.DistributionItem;
 import com.hackathon.api.dashboard.DashboardData.HelpItem;
 import com.hackathon.api.dashboard.DashboardData.ImpactMetric;
+import com.hackathon.api.dashboard.DashboardData.LogoutResponse;
 import com.hackathon.api.dashboard.DashboardData.MaterialItem;
+import com.hackathon.api.dashboard.DashboardData.NotificationItem;
 import com.hackathon.api.dashboard.DashboardData.PageMetadata;
 import com.hackathon.api.dashboard.DashboardData.PartnerItem;
 import com.hackathon.api.dashboard.DashboardData.ReportItem;
@@ -81,7 +84,44 @@ public class DashboardService {
     }
 
     AppShellData appShell() {
-        return readOne("shell", AppShellData.class, emptyShell());
+        AppShellData shell = readOne("shell", AppShellData.class, emptyShell());
+        return new AppShellData(
+            shell.brandName(),
+            shell.brandSubtitle(),
+            shell.period(),
+            shell.user(),
+            unreadNotificationsCount(),
+            shell.pages()
+        );
+    }
+
+    CompanyProfile companyProfile() {
+        return readOne("companyProfile", CompanyProfile.class, emptyCompanyProfile());
+    }
+
+    List<NotificationItem> notifications() {
+        return readList("notifications", NotificationItem.class);
+    }
+
+    NotificationItem markNotificationRead(String id) {
+        NotificationItem notification = notifications().stream()
+            .filter(item -> item.id().equals(id))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("Notificacao nao encontrada"));
+        NotificationItem updated = new NotificationItem(
+            notification.id(),
+            notification.title(),
+            notification.message(),
+            notification.createdAt(),
+            true,
+            notification.tone()
+        );
+        updateSeed("notifications", id, updated);
+        return updated;
+    }
+
+    LogoutResponse logout() {
+        return new LogoutResponse(true, "Sessao encerrada");
     }
 
     List<ComprovacaoResponse> listComprovacoes(String query) {
@@ -202,6 +242,19 @@ public class DashboardService {
         }
     }
 
+    private void updateSeed(String category, String itemKey, Object payload) {
+        try {
+            jdbc.update(
+                "update dashboard_seed_data set payload = ? where category = ? and item_key = ?",
+                objectMapper.writeValueAsString(payload),
+                category,
+                itemKey
+            );
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Nao foi possivel atualizar dados do banco", exception);
+        }
+    }
+
     private <T> List<T> readList(String category, Class<T> type) {
         List<String> payloads = jdbc.queryForList(
             "select payload from dashboard_seed_data where category = ? order by sort_order, item_key",
@@ -240,6 +293,14 @@ public class DashboardService {
 
     private AppShellData emptyShell() {
         return new AppShellData("", "", "", new UserProfile("", ""), 0, List.<PageMetadata>of());
+    }
+
+    private CompanyProfile emptyCompanyProfile() {
+        return new CompanyProfile("", "", "", "", "", "", "");
+    }
+
+    private int unreadNotificationsCount() {
+        return (int) notifications().stream().filter(item -> !item.read()).count();
     }
 
     private ComprovacaoResponse toResponse(Comprovacao comprovacao) {

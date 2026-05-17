@@ -3,9 +3,12 @@ import type {
   AppShellData,
   CertificateItem,
   Comprovacao,
+  CompanyProfile,
   DashboardData,
   HelpItem,
+  LogoutResponse,
   MaterialItem,
+  NotificationItem,
   PartnerItem,
   ReportItem,
   SettingItem,
@@ -35,10 +38,17 @@ export type CreateComprovacaoPayload = {
   observacoes?: string;
 };
 
+let authToken: string | null = null;
+
+export function setAuthToken(token: string | null) {
+  authToken = token;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${env.apiUrl}${path}`, {
     headers: {
       'Content-Type': 'application/json',
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
       ...(init?.headers ?? {}),
     },
     ...init,
@@ -51,12 +61,66 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json();
 }
 
+export type LoginPayload = {
+  email: string;
+  password: string;
+};
+
+export type RegisterPayload = {
+  name: string;
+  email: string;
+  password: string;
+};
+
+export type LoginResponse = {
+  token: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  };
+};
+
+export function login(payload: LoginPayload): Promise<LoginResponse> {
+  return request<LoginResponse>('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function register(payload: RegisterPayload): Promise<LoginResponse> {
+  return request<LoginResponse>('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export function getDashboard(): Promise<DashboardData> {
   return request<DashboardData>('/api/dashboard');
 }
 
 export function getAppShell(): Promise<AppShellData> {
   return request<AppShellData>('/api/app-shell');
+}
+
+export function getCompanyProfile(): Promise<CompanyProfile> {
+  return request<CompanyProfile>('/api/profile/company');
+}
+
+export function getNotifications(): Promise<NotificationItem[]> {
+  return request<NotificationItem[]>('/api/notifications');
+}
+
+export function markNotificationRead(id: string): Promise<NotificationItem> {
+  return request<NotificationItem>(`/api/notifications/${encodeURIComponent(id)}/read`, {
+    method: 'POST',
+  });
+}
+
+export function logout(): Promise<LogoutResponse> {
+  return request<LogoutResponse>('/api/auth/logout', {
+    method: 'POST',
+  });
 }
 
 function queryString(query?: string) {

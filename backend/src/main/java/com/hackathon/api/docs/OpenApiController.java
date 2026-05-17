@@ -14,9 +14,15 @@ public class OpenApiController {
     @GetMapping("/v3/api-docs")
     Map<String, Object> openApi() {
         Map<String, Object> paths = new LinkedHashMap<>();
-        paths.put("/api/health", path(get("Health check")));
+        paths.put("/api/health", path(publicGet("Health check")));
+        paths.put("/api/auth/login", path(publicPost("Autentica usuário e retorna JWT", "LoginRequest", "LoginResponse")));
+        paths.put("/api/auth/register", path(publicPost("Cadastra empresa, criptografa senha e retorna JWT", "RegisterRequest", "LoginResponse")));
+        paths.put("/api/auth/logout", path(post("Encerra sessão atual", null, "LogoutResponse")));
         paths.put("/api/dashboard", path(get("Dados agregados da tela inicial")));
         paths.put("/api/app-shell", path(getSchema("Dados de cabecalho, usuario, periodo e paginas", "AppShellData")));
+        paths.put("/api/profile/company", path(getSchema("Perfil da empresa logada", "CompanyProfile")));
+        paths.put("/api/notifications", path(getArray("Lista notificações do usuário", "NotificationItem")));
+        paths.put("/api/notifications/{id}/read", path(post("Marca notificação como lida", null, "NotificationItem")));
         paths.put("/api/comprovacoes", path(
             get("Lista comprovações com filtro opcional por query"),
             post("Cria comprovação de lastro", "CreateComprovacaoRequest", "ComprovacaoResponse")
@@ -41,7 +47,8 @@ public class OpenApiController {
             ),
             "servers", List.of(Map.of("url", "http://localhost:8085")),
             "paths", paths,
-            "components", components()
+            "components", components(),
+            "security", List.of(Map.of("bearerAuth", List.of()))
         );
     }
 
@@ -69,6 +76,28 @@ public class OpenApiController {
 
     private Map<String, Object> components() {
         Map<String, Object> schemas = new LinkedHashMap<>();
+        schemas.put("LoginRequest", object(Map.of(
+                "email", stringExample("contato@empresa.com"),
+                "password", stringExample("senha-segura")
+            ), List.of("email", "password")));
+        schemas.put("RegisterRequest", object(Map.of(
+                "name", stringExample("Empresa Exemplo"),
+                "email", stringExample("contato@empresa.com"),
+                "password", stringExample("senha-segura")
+            ), List.of("name", "email", "password")));
+        schemas.put("LoginResponse", object(Map.of(
+                "token", stringExample("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."),
+                "user", ref("AuthUser")
+            ), List.of()));
+        schemas.put("AuthUser", object(Map.of(
+                "id", Map.of("type", "string", "format", "uuid"),
+                "name", stringExample("Empresa Exemplo"),
+                "email", stringExample("contato@empresa.com")
+            ), List.of()));
+        schemas.put("LogoutResponse", object(Map.of(
+                "loggedOut", Map.of("type", "boolean", "example", true),
+                "message", stringExample("Sessao encerrada")
+            ), List.of()));
         schemas.put("CreateComprovacaoRequest", object(Map.of(
                 "material", stringExample("Material reciclavel"),
                 "quantidadeKg", Map.of("type", "number", "format", "double", "example", 1250),
@@ -121,7 +150,7 @@ public class OpenApiController {
                 "action", stringExample("comprovacoes")
             ), List.of()));
         schemas.put("UserProfile", object(Map.of(
-                "name", stringExample("Empresa Corp"),
+                "name", stringExample("Empresa Exemplo"),
                 "role", stringExample("Admin")
             ), List.of()));
         schemas.put("PageMetadata", object(Map.of(
@@ -138,22 +167,53 @@ public class OpenApiController {
                 "notificationsCount", Map.of("type", "integer", "example", 3),
                 "pages", Map.of("type", "array", "items", ref("PageMetadata"))
             ), List.of()));
+        schemas.put("CompanyProfile", object(Map.of(
+                "companyName", stringExample("Empresa Exemplo"),
+                "document", stringExample("12.345.678/0001-90"),
+                "email", stringExample("contato@empresa.com"),
+                "phone", stringExample("(11) 4002-8922"),
+                "address", stringExample("Av. Paulista, 1000 - São Paulo, SP"),
+                "plan", stringExample("Enterprise"),
+                "status", stringExample("Ativo")
+            ), List.of()));
+        schemas.put("NotificationItem", object(Map.of(
+                "id", stringExample("NOT-001"),
+                "title", stringExample("Notificação"),
+                "message", stringExample("Mensagem da notificação"),
+                "createdAt", Map.of("type", "string", "format", "date-time"),
+                "read", Map.of("type", "boolean", "example", false),
+                "tone", stringExample("primary")
+            ), List.of()));
         schemas.put("CreateUserRequest", object(Map.of(
-                "name", stringExample("Empresa Corp"),
-                "email", stringExample("admin@empresa.com")
-            ), List.of("name", "email")));
+                "name", stringExample("Empresa Exemplo"),
+                "email", stringExample("contato@empresa.com"),
+                "password", stringExample("senha-segura")
+            ), List.of("name", "email", "password")));
         schemas.put("UserResponse", object(Map.of(
                 "id", Map.of("type", "string", "format", "uuid"),
-                "name", stringExample("Empresa Corp"),
-                "email", stringExample("admin@empresa.com"),
+                "name", stringExample("Empresa Exemplo"),
+                "email", stringExample("contato@empresa.com"),
                 "createdAt", Map.of("type", "string", "format", "date-time")
             ), List.of()));
 
-        return Map.of("schemas", schemas);
+        return Map.of(
+            "schemas", schemas,
+            "securitySchemes", Map.of(
+                "bearerAuth", Map.of(
+                    "type", "http",
+                    "scheme", "bearer",
+                    "bearerFormat", "JWT"
+                )
+            )
+        );
     }
 
     private Map<String, Object> get(String summary) {
         return Map.of("get", operation(summary, null, null));
+    }
+
+    private Map<String, Object> publicGet(String summary) {
+        return Map.of("get", operation(summary, null, null, true));
     }
 
     private Map<String, Object> getSchema(String summary, String responseSchema) {
@@ -168,6 +228,10 @@ public class OpenApiController {
         return Map.of("post", operation(summary, requestSchema, responseSchema));
     }
 
+    private Map<String, Object> publicPost(String summary, String requestSchema, String responseSchema) {
+        return Map.of("post", operation(summary, requestSchema, responseSchema, true));
+    }
+
     @SafeVarargs
     private Map<String, Object> path(Map<String, Object>... operations) {
         Map<String, Object> result = new LinkedHashMap<>();
@@ -178,8 +242,15 @@ public class OpenApiController {
     }
 
     private Map<String, Object> operation(String summary, String requestSchema, String responseSchema) {
+        return operation(summary, requestSchema, responseSchema, false);
+    }
+
+    private Map<String, Object> operation(String summary, String requestSchema, String responseSchema, boolean publicEndpoint) {
         Map<String, Object> operation = new LinkedHashMap<>();
         operation.put("summary", summary);
+        if (publicEndpoint) {
+            operation.put("security", List.of());
+        }
         if (requestSchema != null) {
             operation.put("requestBody", Map.of(
                 "required", true,

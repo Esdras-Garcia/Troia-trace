@@ -11,6 +11,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -22,9 +23,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserController {
 
     private final UserRepository users;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserController(UserRepository users) {
+    public UserController(UserRepository users, PasswordEncoder passwordEncoder) {
         this.users = users;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @GetMapping
@@ -36,7 +39,7 @@ public class UserController {
 
     @PostMapping
     ResponseEntity<UserResponse> create(@Valid @RequestBody CreateUserRequest request) {
-        User user = users.save(new User(request.name(), request.email()));
+        User user = users.save(new User(request.name(), request.email(), passwordEncoder.encode(request.password())));
         return ResponseEntity
             .created(URI.create("/api/users/" + user.getId()))
             .body(UserResponse.from(user));
@@ -44,7 +47,8 @@ public class UserController {
 
     public record CreateUserRequest(
         @NotBlank @Size(max = 120) String name,
-        @NotBlank @Email @Size(max = 180) String email
+        @NotBlank @Email @Size(max = 180) String email,
+        @NotBlank @Size(min = 8, max = 80) String password
     ) {
     }
 

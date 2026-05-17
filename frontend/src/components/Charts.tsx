@@ -23,6 +23,9 @@ export function VolumeChart({ volumeData }: { volumeData: VolumeItem[] }) {
   const barGap = 6;
   const groupWidth = seriesCount * barWidth + (seriesCount - 1) * barGap;
   const baseY = 182;
+  const topY = 32;
+  const plotHeight = baseY - topY;
+  const axisTicks = [0, 450, 900, 1350, 1800];
   const firstGroupCenter = plotLeft + groupWidth / 2;
   const lastGroupCenter = plotRight - groupWidth / 2;
   const groupStep = volumeData.length > 1 ? (lastGroupCenter - firstGroupCenter) / (volumeData.length - 1) : 0;
@@ -32,9 +35,28 @@ export function VolumeChart({ volumeData }: { volumeData: VolumeItem[] }) {
       <Text style={styles.cardTitle}>Volume Mensal por Material</Text>
       <Text style={styles.cardSubtitle}>Quantidade de materiais processados nos últimos 5 meses (kg)</Text>
       <Svg viewBox={`0 0 ${width} ${height}`} style={styles.svg}>
-        {[0, 1, 2, 3].map((line) => (
-          <Path key={line} d={`M${plotLeft} ${35 + line * 45} H${plotRight}`} stroke={colors.border} strokeWidth={1} opacity={0.8} />
-        ))}
+        {axisTicks.map((tick) => {
+          const y = baseY - (tick / max) * plotHeight;
+          return (
+            <G key={tick}>
+              <Path d={`M${plotLeft} ${y} H${plotRight}`} stroke={colors.border} strokeWidth={1} opacity={0.8} />
+              <SvgText
+                fill={colors.muted}
+                fontFamily={fontFamily}
+                fontSize={10}
+                fontWeight="700"
+                textAnchor="end"
+                x={plotLeft - 8}
+                y={y + 4}
+              >
+                {tick.toLocaleString('pt-BR')}
+              </SvgText>
+            </G>
+          );
+        })}
+        <SvgText fill={colors.muted} fontFamily={fontFamily} fontSize={10} fontWeight="800" textAnchor="middle" x={18} y={108} transform="rotate(-90 18 108)">
+          kg
+        </SvgText>
         {volumeData.map((item, index) => {
           const groupCenter = firstGroupCenter + index * groupStep;
           const x = groupCenter - groupWidth / 2;
@@ -42,18 +64,32 @@ export function VolumeChart({ volumeData }: { volumeData: VolumeItem[] }) {
             <G key={item.mes}>
               {series.map((serie, serieIndex) => {
                 const value = item[serie.key];
-                const barHeight = (value / max) * 150;
+                const barHeight = (value / max) * plotHeight;
+                const barX = x + serieIndex * (barWidth + barGap);
+                const barY = baseY - barHeight;
                 return (
-                  <Rect
-                    key={serie.key}
-                    x={x + serieIndex * (barWidth + barGap)}
-                    y={baseY - barHeight}
-                    width={barWidth}
-                    height={barHeight}
-                    rx={4}
-                    fill={serie.color}
-                    opacity={0.82}
-                  />
+                  <G key={serie.key}>
+                    <Rect
+                      x={barX}
+                      y={barY}
+                      width={barWidth}
+                      height={barHeight}
+                      rx={4}
+                      fill={serie.color}
+                      opacity={0.82}
+                    />
+                    <SvgText
+                      fill={colors.text}
+                      fontFamily={fontFamily}
+                      fontSize={9}
+                      fontWeight="800"
+                      textAnchor="middle"
+                      x={barX + barWidth / 2}
+                      y={Math.max(12, barY - 4)}
+                    >
+                      {value.toLocaleString('pt-BR')}
+                    </SvgText>
+                  </G>
                 );
               })}
               <SvgText
