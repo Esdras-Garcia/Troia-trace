@@ -69,7 +69,7 @@ export function HomeScreen() {
         }
 
         if (activePage === 'materiais') {
-          const materiais = await getMateriais();
+          const materiais = await getMateriais(query);
           if (active) {
             setDashboard((current) => ({ ...current, materiais }));
           }
@@ -77,7 +77,7 @@ export function HomeScreen() {
         }
 
         if (activePage === 'relatorios') {
-          const relatorios = await getRelatorios();
+          const relatorios = await getRelatorios(query);
           if (active) {
             setDashboard((current) => ({ ...current, relatorios }));
           }
@@ -85,7 +85,7 @@ export function HomeScreen() {
         }
 
         if (activePage === 'parceiros') {
-          const parceiros = await getParceiros();
+          const parceiros = await getParceiros(query);
           if (active) {
             setDashboard((current) => ({ ...current, parceiros }));
           }
@@ -93,7 +93,7 @@ export function HomeScreen() {
         }
 
         if (activePage === 'certificados') {
-          const certificados = await getCertificados();
+          const certificados = await getCertificados(query);
           if (active) {
             setDashboard((current) => ({ ...current, certificados }));
           }
@@ -101,14 +101,14 @@ export function HomeScreen() {
         }
 
         if (activePage === 'configuracoes') {
-          const configuracoes = await getConfiguracoes();
+          const configuracoes = await getConfiguracoes(query);
           if (active) {
             setDashboard((current) => ({ ...current, configuracoes }));
           }
           return;
         }
 
-        const ajuda = await getAjuda();
+        const ajuda = await getAjuda(query);
         if (active) {
           setDashboard((current) => ({ ...current, ajuda }));
         }
@@ -126,7 +126,8 @@ export function HomeScreen() {
     };
   }, [activePage, query]);
 
-  const pageTitle = [...navItems, ...bottomNavItems].find((item) => item.key === activePage)?.title ?? 'Visao Geral';
+  const pageMetadata = dashboard.shell.pages.find((item) => item.key === activePage);
+  const pageTitle = pageMetadata?.title ?? [...navItems, ...bottomNavItems].find((item) => item.key === activePage)?.title ?? 'Visao Geral';
 
   return (
     <View style={styles.app}>
@@ -135,21 +136,22 @@ export function HomeScreen() {
         onClose={() => setModalVisible(false)}
         onCreated={(comprovacao) => setDashboard((current) => ({ ...current, comprovacoes: [comprovacao, ...current.comprovacoes] }))}
       />
-      {isWide ? <Sidebar activePage={activePage} onNavigate={setActivePage} /> : null}
+      {isWide ? <Sidebar activePage={activePage} dashboard={dashboard} onNavigate={setActivePage} /> : null}
       <View style={styles.contentShell}>
         <TopHeader
           activePage={activePage}
           isWide={isWide}
           query={query}
+          dashboard={dashboard}
           onChangeQuery={setQuery}
           onOpenModal={() => setModalVisible(true)}
           onNavigate={setActivePage}
         />
         <ScrollView style={styles.content} contentContainerStyle={styles.contentInner}>
           <View style={styles.pageHeader}>
-            <SectionTitle title={pageTitle} subtitle={subtitleFor(activePage)} />
+            <SectionTitle title={pageTitle} subtitle={pageMetadata?.subtitle ?? subtitleFor(activePage)} />
             <View style={styles.pageActions}>
-              <Text style={styles.period}>Maio 2026</Text>
+              <Text style={styles.period}>{dashboard.shell.period}</Text>
               <Button onPress={() => setModalVisible(true)}>
                 <Text style={styles.buttonInline}>+ Nova Comprovacao</Text>
               </Button>
@@ -162,7 +164,7 @@ export function HomeScreen() {
   );
 }
 
-function Sidebar({ activePage, onNavigate }: { activePage: PageKey; onNavigate: (page: PageKey) => void }) {
+function Sidebar({ activePage, dashboard, onNavigate }: { activePage: PageKey; dashboard: DashboardData; onNavigate: (page: PageKey) => void }) {
   return (
     <View style={styles.sidebar}>
       <View style={styles.brand}>
@@ -170,20 +172,20 @@ function Sidebar({ activePage, onNavigate }: { activePage: PageKey; onNavigate: 
           <Recycle color="#fff" size={22} />
         </View>
         <View>
-          <Text style={styles.brandTitle}>Troia Trace</Text>
-          <Text style={styles.brandSubtitle}>Logistica Reversa</Text>
+          <Text style={styles.brandTitle}>{dashboard.shell.brandName}</Text>
+          <Text style={styles.brandSubtitle}>{dashboard.shell.brandSubtitle}</Text>
         </View>
       </View>
       <View style={styles.navSection}>
         <Text style={styles.navLabel}>Menu</Text>
         {navItems.map((item) => (
-          <NavButton key={item.key} active={activePage === item.key} item={item} onPress={() => onNavigate(item.key)} />
+          <NavButton key={item.key} active={activePage === item.key} item={{ ...item, title: pageTitleFor(dashboard, item.key) }} onPress={() => onNavigate(item.key)} />
         ))}
       </View>
       <View style={styles.navFooter}>
         <Text style={styles.navLabel}>Sistema</Text>
         {bottomNavItems.map((item) => (
-          <NavButton key={item.key} active={activePage === item.key} item={item} onPress={() => onNavigate(item.key)} />
+          <NavButton key={item.key} active={activePage === item.key} item={{ ...item, title: pageTitleFor(dashboard, item.key) }} onPress={() => onNavigate(item.key)} />
         ))}
       </View>
     </View>
@@ -212,6 +214,7 @@ function TopHeader({
   activePage,
   isWide,
   query,
+  dashboard,
   onChangeQuery,
   onOpenModal,
   onNavigate,
@@ -219,6 +222,7 @@ function TopHeader({
   activePage: PageKey;
   isWide: boolean;
   query: string;
+  dashboard: DashboardData;
   onChangeQuery: (value: string) => void;
   onOpenModal: () => void;
   onNavigate: (page: PageKey) => void;
@@ -242,7 +246,7 @@ function TopHeader({
           <View style={styles.iconButton}>
             <Bell color={colors.text} size={18} />
             <View style={styles.notificationDot}>
-              <Text style={styles.notificationText}>3</Text>
+              <Text style={styles.notificationText}>{dashboard.shell.notificationsCount}</Text>
             </View>
           </View>
         </View>
@@ -253,7 +257,7 @@ function TopHeader({
               style={[styles.mobileNavItem, activePage === item.key && styles.mobileNavItemActive]}
               onPress={() => onNavigate(item.key)}
             >
-              <Text style={[styles.mobileNavText, activePage === item.key && styles.mobileNavTextActive]}>{item.title}</Text>
+              <Text style={[styles.mobileNavText, activePage === item.key && styles.mobileNavTextActive]}>{pageTitleFor(dashboard, item.key)}</Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -279,14 +283,14 @@ function TopHeader({
         <View style={styles.iconButton}>
           <Bell color={colors.text} size={18} />
           <View style={styles.notificationDot}>
-            <Text style={styles.notificationText}>3</Text>
+            <Text style={styles.notificationText}>{dashboard.shell.notificationsCount}</Text>
           </View>
         </View>
         <View style={styles.userChip}>
           <User color={colors.primary} size={16} />
           <View>
-            <Text style={styles.userName}>Empresa Corp</Text>
-            <Text style={styles.userRole}>Admin</Text>
+            <Text style={styles.userName}>{dashboard.shell.user.name}</Text>
+            <Text style={styles.userRole}>{dashboard.shell.user.role}</Text>
           </View>
         </View>
       </View>
@@ -314,16 +318,40 @@ function PageContent({
     return <ComprovacoesPage query={query} comprovacoes={dashboard.comprovacoes} />;
   }
   if (activePage === 'materiais') {
-    return <SimpleListPage data={dashboard.materiais} title="Materiais monitorados" columns={['Material', 'Volume', 'Taxa', 'Situacao']} />;
+    return (
+      <SimpleListPage
+        data={dashboard.materiais.map((item) => [item.material, item.volume, item.taxa, item.situacao])}
+        title="Materiais monitorados"
+        columns={['Material', 'Volume', 'Taxa', 'Situacao']}
+      />
+    );
   }
   if (activePage === 'relatorios') {
-    return <SimpleListPage data={dashboard.relatorios} title="Relatorios disponiveis" columns={['Relatorio', 'Formato', 'Status']} />;
+    return (
+      <SimpleListPage
+        data={dashboard.relatorios.map((item) => [item.relatorio, item.formato, item.status])}
+        title="Relatorios disponiveis"
+        columns={['Relatorio', 'Formato', 'Status']}
+      />
+    );
   }
   if (activePage === 'parceiros') {
-    return <SimpleListPage data={dashboard.parceiros} title="Rede de parceiros" columns={['Parceiro', 'Atuacao', 'Status', 'SLA']} />;
+    return (
+      <SimpleListPage
+        data={dashboard.parceiros.map((item) => [item.parceiro, item.atuacao, item.status, item.sla])}
+        title="Rede de parceiros"
+        columns={['Parceiro', 'Atuacao', 'Status', 'SLA']}
+      />
+    );
   }
   if (activePage === 'certificados') {
-    return <SimpleListPage data={dashboard.certificados} title="Certificados e laudos" columns={['ID', 'Material', 'Status', 'Data']} />;
+    return (
+      <SimpleListPage
+        data={dashboard.certificados.map((item) => [item.id, item.material, item.status, item.data])}
+        title="Certificados e laudos"
+        columns={['ID', 'Material', 'Status', 'Data']}
+      />
+    );
   }
   if (activePage === 'configuracoes') {
     return <SettingsPage settings={dashboard.configuracoes} />;
@@ -528,6 +556,10 @@ function HelpPage({ items, onNavigate }: { items: HelpItem[]; onNavigate: (page:
       </Card>
     </View>
   );
+}
+
+function pageTitleFor(dashboard: DashboardData, key: PageKey) {
+  return dashboard.shell.pages.find((page) => page.key === key)?.title ?? [...navItems, ...bottomNavItems].find((item) => item.key === key)?.title ?? key;
 }
 
 function subtitleFor(page: PageKey) {

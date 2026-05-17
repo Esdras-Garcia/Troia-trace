@@ -2,7 +2,12 @@ package com.hackathon.api.dashboard;
 
 import com.hackathon.api.dashboard.DashboardData.ComprovacaoResponse;
 import com.hackathon.api.dashboard.DashboardData.CreateComprovacaoRequest;
+import com.hackathon.api.dashboard.DashboardData.CertificateItem;
 import com.hackathon.api.dashboard.DashboardData.HelpItem;
+import com.hackathon.api.dashboard.DashboardData.MaterialItem;
+import com.hackathon.api.dashboard.DashboardData.AppShellData;
+import com.hackathon.api.dashboard.DashboardData.PartnerItem;
+import com.hackathon.api.dashboard.DashboardData.ReportItem;
 import com.hackathon.api.dashboard.DashboardData.SettingItem;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -31,6 +36,11 @@ public class DashboardController {
         return dashboardService.dashboard();
     }
 
+    @GetMapping("/app-shell")
+    AppShellData appShell() {
+        return dashboardService.appShell();
+    }
+
     @GetMapping("/comprovacoes")
     List<ComprovacaoResponse> comprovacoes(@RequestParam(required = false) String query) {
         return dashboardService.listComprovacoes(query);
@@ -43,32 +53,32 @@ public class DashboardController {
     }
 
     @GetMapping("/materiais")
-    List<List<String>> materiais() {
-        return dashboardService.materiais();
+    List<MaterialItem> materiais(@RequestParam(required = false) String query) {
+        return dashboardService.materiais(query);
     }
 
     @GetMapping("/parceiros")
-    List<List<String>> parceiros() {
-        return dashboardService.parceiros();
+    List<PartnerItem> parceiros(@RequestParam(required = false) String query) {
+        return dashboardService.parceiros(query);
     }
 
     @GetMapping("/certificados")
-    List<List<String>> certificados() {
-        return dashboardService.certificados();
+    List<CertificateItem> certificados(@RequestParam(required = false) String query) {
+        return dashboardService.certificados(query);
     }
 
     @GetMapping("/relatorios")
-    List<List<String>> relatorios() {
-        return dashboardService.relatorios();
+    List<ReportItem> relatorios(@RequestParam(required = false) String query) {
+        return dashboardService.relatorios(query);
     }
 
     @GetMapping("/configuracoes")
-    List<SettingItem> configuracoes() {
-        return dashboardService.configuracoes();
+    List<SettingItem> configuracoes(@RequestParam(required = false) String query) {
+        return dashboardService.configuracoes(query);
     }
 
     @GetMapping("/ajuda")
-    List<HelpItem> ajuda() {
-        return dashboardService.ajuda();
+    List<HelpItem> ajuda(@RequestParam(required = false) String query) {
+        return dashboardService.ajuda(query);
     }
 }

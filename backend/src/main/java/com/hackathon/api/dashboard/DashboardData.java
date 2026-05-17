@@ -9,19 +9,36 @@ import java.time.LocalDate;
 import java.util.List;
 
 public record DashboardData(
+    AppShellData shell,
     List<StatItem> stats,
     List<ComprovacaoResponse> comprovacoes,
     List<VolumeItem> volumeData,
     List<DistributionItem> materialDistribution,
     List<ImpactMetric> impactMetrics,
     List<String> activities,
-    List<List<String>> materiais,
-    List<List<String>> parceiros,
-    List<List<String>> certificados,
-    List<List<String>> relatorios,
+    List<MaterialItem> materiais,
+    List<PartnerItem> parceiros,
+    List<CertificateItem> certificados,
+    List<ReportItem> relatorios,
     List<SettingItem> configuracoes,
     List<HelpItem> ajuda
 ) {
+    public record AppShellData(
+        String brandName,
+        String brandSubtitle,
+        String period,
+        UserProfile user,
+        int notificationsCount,
+        List<PageMetadata> pages
+    ) {
+    }
+
+    public record UserProfile(String name, String role) {
+    }
+
+    public record PageMetadata(String key, String title, String subtitle, String section) {
+    }
+
     public record StatItem(
         String title,
         String value,
@@ -64,13 +81,25 @@ public record DashboardData(
     public record ImpactMetric(String title, double value, double target, String unit) {
     }
 
+    public record MaterialItem(String material, String volume, String taxa, String situacao) {
+    }
+
+    public record PartnerItem(String parceiro, String atuacao, String status, String sla) {
+    }
+
+    public record CertificateItem(String id, String material, String status, String data) {
+    }
+
+    public record ReportItem(String relatorio, String formato, String status) {
+    }
+
     public record SettingItem(String title, String description, int progress) {
     }
 
     public record HelpItem(String title, String description, String action) {
     }
 
-    record Comprovacao(
+    public record Comprovacao(
         String id,
         String hashLastro,
         String material,

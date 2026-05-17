@@ -77,19 +77,61 @@ export type HelpItem = {
   description: string;
   action: PageKey;
 };
+export type MaterialItem = {
+  material: string;
+  volume: string;
+  taxa: string;
+  situacao: string;
+};
+export type PartnerItem = {
+  parceiro: string;
+  atuacao: string;
+  status: string;
+  sla: string;
+};
+export type CertificateItem = {
+  id: string;
+  material: string;
+  status: string;
+  data: string;
+};
+export type ReportItem = {
+  relatorio: string;
+  formato: string;
+  status: string;
+};
 export type DashboardData = {
+  shell: AppShellData;
   stats: Stat[];
   comprovacoes: Comprovacao[];
   volumeData: VolumeItem[];
   materialDistribution: MaterialDistributionItem[];
   impactMetrics: ImpactMetric[];
   activities: string[];
-  materiais: string[][];
-  parceiros: string[][];
-  certificados: string[][];
-  relatorios: string[][];
+  materiais: MaterialItem[];
+  parceiros: PartnerItem[];
+  certificados: CertificateItem[];
+  relatorios: ReportItem[];
   configuracoes: SettingItem[];
   ajuda: HelpItem[];
+};
+
+export type PageMetadata = {
+  key: PageKey;
+  title: string;
+  subtitle: string;
+  section: 'menu' | 'system';
+};
+export type AppShellData = {
+  brandName: string;
+  brandSubtitle: string;
+  period: string;
+  user: {
+    name: string;
+    role: string;
+  };
+  notificationsCount: number;
+  pages: PageMetadata[];
 };
 
 export const navItems: NavItem[] = [
@@ -227,33 +269,33 @@ export const activities = [
   'Relatorio ESG de maio exportado',
 ];
 
-export const materiais = [
-  ['Plastico PET', '4.620 kg', '94%', 'Alto volume'],
-  ['Papelao', '3.180 kg', '91%', 'Coleta recorrente'],
-  ['Vidro', '2.410 kg', '88%', 'Pendente validacao'],
-  ['Aluminio', '1.050 kg', '96%', 'Certificado'],
-  ['Plastico PEAD', '780 kg', '72%', 'Expirado'],
+export const materiais: MaterialItem[] = [
+  { material: 'Plastico PET', volume: '4.620 kg', taxa: '94%', situacao: 'Alto volume' },
+  { material: 'Papelao', volume: '3.180 kg', taxa: '91%', situacao: 'Coleta recorrente' },
+  { material: 'Vidro', volume: '2.410 kg', taxa: '88%', situacao: 'Pendente validacao' },
+  { material: 'Aluminio', volume: '1.050 kg', taxa: '96%', situacao: 'Certificado' },
+  { material: 'Plastico PEAD', volume: '780 kg', taxa: '72%', situacao: 'Expirado' },
 ];
 
-export const parceiros = [
-  ['RecycleTech Ltda', 'Coleta e triagem', 'Homologado', '98%'],
-  ['EcoPapel S.A.', 'Reciclagem de papel', 'Homologado', '94%'],
-  ['VidroVerde Ind.', 'Processamento', 'Pendente', '87%'],
-  ['PlastiCycle', 'Destinacao final', 'Documento vencido', '76%'],
+export const parceiros: PartnerItem[] = [
+  { parceiro: 'RecycleTech Ltda', atuacao: 'Coleta e triagem', status: 'Homologado', sla: '98%' },
+  { parceiro: 'EcoPapel S.A.', atuacao: 'Reciclagem de papel', status: 'Homologado', sla: '94%' },
+  { parceiro: 'VidroVerde Ind.', atuacao: 'Processamento', status: 'Pendente', sla: '87%' },
+  { parceiro: 'PlastiCycle', atuacao: 'Destinacao final', status: 'Documento vencido', sla: '76%' },
 ];
 
-export const certificados = [
-  ['CERT-2048', 'Plastico PET', 'Aprovado', '15 Mai 2026'],
-  ['CERT-2049', 'Papelao', 'Aprovado', '14 Mai 2026'],
-  ['CERT-2050', 'Vidro', 'Em analise', '13 Mai 2026'],
-  ['CERT-2051', 'PEAD', 'Rejeitado', '08 Mai 2026'],
+export const certificados: CertificateItem[] = [
+  { id: 'CERT-2048', material: 'Plastico PET', status: 'Aprovado', data: '15 Mai 2026' },
+  { id: 'CERT-2049', material: 'Papelao', status: 'Aprovado', data: '14 Mai 2026' },
+  { id: 'CERT-2050', material: 'Vidro', status: 'Em analise', data: '13 Mai 2026' },
+  { id: 'CERT-2051', material: 'PEAD', status: 'Rejeitado', data: '08 Mai 2026' },
 ];
 
-export const relatorios = [
-  ['Rastreabilidade completa', 'PDF', 'Pronto'],
-  ['Volume por unidade', 'Excel', 'Pronto'],
-  ['Divergencias abertas', 'CSV', 'Gerando'],
-  ['Comprovatorio fiscal', 'PDF', 'Pendente'],
+export const relatorios: ReportItem[] = [
+  { relatorio: 'Rastreabilidade completa', formato: 'PDF', status: 'Pronto' },
+  { relatorio: 'Volume por unidade', formato: 'Excel', status: 'Pronto' },
+  { relatorio: 'Divergencias abertas', formato: 'CSV', status: 'Gerando' },
+  { relatorio: 'Comprovatorio fiscal', formato: 'PDF', status: 'Pendente' },
 ];
 
 export const configuracoes: SettingItem[] = [
@@ -277,6 +319,26 @@ export const ajuda: HelpItem[] = [
 ];
 
 export const initialDashboard: DashboardData = {
+  shell: {
+    brandName: 'Troia Trace',
+    brandSubtitle: 'Logistica Reversa',
+    period: 'Maio 2026',
+    user: {
+      name: 'Empresa Corp',
+      role: 'Admin',
+    },
+    notificationsCount: 3,
+    pages: [
+      { key: 'overview', title: 'Visao Geral', subtitle: 'Acompanhe suas comprovacoes de logistica reversa.', section: 'menu' },
+      { key: 'comprovacoes', title: 'Comprovacoes', subtitle: 'Consulte e registre operacoes com hash de lastro.', section: 'menu' },
+      { key: 'materiais', title: 'Materiais', subtitle: 'Controle volumes, categorias e eficiencia por material.', section: 'menu' },
+      { key: 'relatorios', title: 'Relatorios', subtitle: 'Exporte rastreabilidade, fiscalizacao e indicadores ESG.', section: 'menu' },
+      { key: 'parceiros', title: 'Parceiros', subtitle: 'Acompanhe cooperativas, recicladoras e terceiros.', section: 'menu' },
+      { key: 'certificados', title: 'Certificados', subtitle: 'Valide laudos e certificados vinculados ao lastro.', section: 'menu' },
+      { key: 'configuracoes', title: 'Configuracoes', subtitle: 'Ajuste regras, tolerancias, notificacoes e permissao.', section: 'system' },
+      { key: 'ajuda', title: 'Ajuda', subtitle: 'Encontre orientacoes para operar a plataforma.', section: 'system' },
+    ],
+  },
   stats,
   comprovacoes,
   volumeData,
