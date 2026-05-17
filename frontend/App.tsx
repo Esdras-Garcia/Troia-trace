@@ -10,7 +10,7 @@ import { clearStoredAuthToken, loadStoredAuthToken } from './src/api/client';
 export default function App() {
   const [authenticated, setAuthenticated] = useState(false);
   const [bootstrapped, setBootstrapped] = useState(false);
-  const useMobileExperience = Platform.OS !== 'web' || process.env.EXPO_PUBLIC_APP_AREA === 'mobile';
+  const useMobileExperience = shouldUseMobileExperience();
 
   useEffect(() => {
     let active = true;
@@ -58,3 +58,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
 });
+
+function shouldUseMobileExperience() {
+  const appArea = process.env.EXPO_PUBLIC_APP_AREA;
+  if (appArea === 'mobile') return true;
+  if (appArea === 'web') return false;
+  if (Platform.OS !== 'web') return true;
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+
+  const userAgent = navigator.userAgent || '';
+  const mobileUserAgent = /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(userAgent);
+  const coarsePointer = window.matchMedia?.('(pointer: coarse)').matches ?? false;
+  const narrowViewport = window.innerWidth <= 768;
+
+  return mobileUserAgent || (coarsePointer && narrowViewport);
+}
