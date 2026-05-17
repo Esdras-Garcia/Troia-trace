@@ -17,10 +17,10 @@ export function NovaComprovacaoModal({
 }) {
   const [registered, setRegistered] = useState(false);
   const [created, setCreated] = useState<Comprovacao | null>(null);
-  const [material, setMaterial] = useState('Plastico PET');
-  const [quantidadeKg, setQuantidadeKg] = useState('1250');
-  const [tipo, setTipo] = useState('Coleta');
-  const [parceiro, setParceiro] = useState('RecycleTech Ltda');
+  const [material, setMaterial] = useState('');
+  const [quantidadeKg, setQuantidadeKg] = useState('');
+  const [tipo, setTipo] = useState('');
+  const [parceiro, setParceiro] = useState('');
   const [observacoes, setObservacoes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 

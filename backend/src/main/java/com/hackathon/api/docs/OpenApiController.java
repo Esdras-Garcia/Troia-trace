@@ -70,43 +70,43 @@ public class OpenApiController {
     private Map<String, Object> components() {
         Map<String, Object> schemas = new LinkedHashMap<>();
         schemas.put("CreateComprovacaoRequest", object(Map.of(
-                "material", stringExample("Plastico PET"),
+                "material", stringExample("Material reciclavel"),
                 "quantidadeKg", Map.of("type", "number", "format", "double", "example", 1250),
                 "tipo", stringExample("Coleta"),
-                "parceiro", stringExample("RecycleTech Ltda"),
+                "parceiro", stringExample("Parceiro responsavel"),
                 "observacoes", stringExample("Nota fiscal anexada")
             ), List.of("material", "quantidadeKg", "tipo", "parceiro")));
         schemas.put("ComprovacaoResponse", object(Map.of(
                 "id", stringExample("COMP-006"),
                 "hashLastro", stringExample("0x4f8a...1f3d"),
-                "material", stringExample("Plastico PET"),
+                "material", stringExample("Material reciclavel"),
                 "quantidade", stringExample("1.250 kg"),
-                "parceiro", stringExample("RecycleTech Ltda"),
+                "parceiro", stringExample("Parceiro responsavel"),
                 "dataEmissao", stringExample("16 mai. 2026"),
                 "status", stringExample("pendente"),
                 "tipo", stringExample("Coleta"),
                 "observacoes", stringExample("Nota fiscal anexada")
             ), List.of()));
         schemas.put("MaterialItem", object(Map.of(
-                "material", stringExample("Plastico PET"),
+                "material", stringExample("Material reciclavel"),
                 "volume", stringExample("4.620 kg"),
                 "taxa", stringExample("94%"),
                 "situacao", stringExample("Alto volume")
             ), List.of()));
         schemas.put("PartnerItem", object(Map.of(
-                "parceiro", stringExample("RecycleTech Ltda"),
+                "parceiro", stringExample("Parceiro responsavel"),
                 "atuacao", stringExample("Coleta e triagem"),
                 "status", stringExample("Homologado"),
                 "sla", stringExample("98%")
             ), List.of()));
         schemas.put("CertificateItem", object(Map.of(
                 "id", stringExample("CERT-2048"),
-                "material", stringExample("Plastico PET"),
+                "material", stringExample("Material reciclavel"),
                 "status", stringExample("Aprovado"),
                 "data", stringExample("15 Mai 2026")
             ), List.of()));
         schemas.put("ReportItem", object(Map.of(
-                "relatorio", stringExample("Rastreabilidade completa"),
+                "relatorio", stringExample("Relatorio operacional"),
                 "formato", stringExample("PDF"),
                 "status", stringExample("Pronto")
             ), List.of()));
@@ -116,7 +116,7 @@ public class OpenApiController {
                 "progress", Map.of("type", "integer", "example", 82)
             ), List.of()));
         schemas.put("HelpItem", object(Map.of(
-                "title", stringExample("Central de ajuda"),
+                "title", stringExample("Item de ajuda"),
                 "description", stringExample("Guias para registrar comprovacoes, homologar parceiros, validar certificados e gerar relatorios ESG."),
                 "action", stringExample("comprovacoes")
             ), List.of()));

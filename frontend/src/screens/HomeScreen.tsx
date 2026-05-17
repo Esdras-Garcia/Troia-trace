@@ -32,8 +32,8 @@ import {
   bottomNavItems,
   Comprovacao,
   DashboardData,
+  emptyDashboard,
   HelpItem,
-  initialDashboard,
   navItems,
   PageKey,
   SettingItem,
@@ -43,7 +43,7 @@ export function HomeScreen() {
   const [activePage, setActivePage] = useState<PageKey>('overview');
   const [query, setQuery] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
-  const [dashboard, setDashboard] = useState<DashboardData>(initialDashboard);
+  const [dashboard, setDashboard] = useState<DashboardData>(emptyDashboard);
   const { width } = useWindowDimensions();
   const isWide = width >= 980;
 
@@ -114,7 +114,7 @@ export function HomeScreen() {
         }
       } catch {
         if (active) {
-          setDashboard(initialDashboard);
+          setDashboard(emptyDashboard);
         }
       }
     }
@@ -149,7 +149,7 @@ export function HomeScreen() {
         />
         <ScrollView style={styles.content} contentContainerStyle={styles.contentInner}>
           <View style={styles.pageHeader}>
-            <SectionTitle title={pageTitle} subtitle={pageMetadata?.subtitle ?? subtitleFor(activePage)} />
+            <SectionTitle title={pageTitle} subtitle={pageMetadata?.subtitle} />
             <View style={styles.pageActions}>
               <Text style={styles.period}>{dashboard.shell.period}</Text>
               <Button onPress={() => setModalVisible(true)}>
@@ -544,15 +544,15 @@ function HelpPage({ items, onNavigate }: { items: HelpItem[]; onNavigate: (page:
     <View style={styles.gridRow}>
       <Card style={styles.helpCard}>
         <Wind color={colors.primary} size={28} />
-        <Text style={styles.helpTitle}>{items[0]?.title ?? 'Central de ajuda'}</Text>
+        <Text style={styles.helpTitle}>{items[0]?.title}</Text>
         <Text style={styles.helpText}>{items[0]?.description}</Text>
-        <Button onPress={() => onNavigate(items[0]?.action ?? 'comprovacoes')}>Abrir comprovacoes</Button>
+        <Button onPress={() => items[0]?.action && onNavigate(items[0].action)}>Abrir comprovacoes</Button>
       </Card>
       <Card style={styles.helpCard}>
         <FileCheck color={colors.accent} size={28} />
-        <Text style={styles.helpTitle}>{items[1]?.title ?? 'Checklist de implantacao'}</Text>
+        <Text style={styles.helpTitle}>{items[1]?.title}</Text>
         <Text style={styles.helpText}>{items[1]?.description}</Text>
-        <Button variant="outline" onPress={() => onNavigate(items[1]?.action ?? 'configuracoes')}>Ver configuracoes</Button>
+        <Button variant="outline" onPress={() => items[1]?.action && onNavigate(items[1].action)}>Ver configuracoes</Button>
       </Card>
     </View>
   );
@@ -560,20 +560,6 @@ function HelpPage({ items, onNavigate }: { items: HelpItem[]; onNavigate: (page:
 
 function pageTitleFor(dashboard: DashboardData, key: PageKey) {
   return dashboard.shell.pages.find((page) => page.key === key)?.title ?? [...navItems, ...bottomNavItems].find((item) => item.key === key)?.title ?? key;
-}
-
-function subtitleFor(page: PageKey) {
-  const subtitles: Record<PageKey, string> = {
-    overview: 'Acompanhe suas comprovacoes de logistica reversa.',
-    comprovacoes: 'Consulte e registre operacoes com hash de lastro.',
-    materiais: 'Controle volumes, categorias e eficiencia por material.',
-    relatorios: 'Exporte rastreabilidade, fiscalizacao e indicadores ESG.',
-    parceiros: 'Acompanhe cooperativas, recicladoras e terceiros.',
-    certificados: 'Valide laudos e certificados vinculados ao lastro.',
-    configuracoes: 'Ajuste regras, tolerancias, notificacoes e permissao.',
-    ajuda: 'Encontre orientacoes para operar a plataforma.',
-  };
-  return subtitles[page];
 }
 
 const styles = StyleSheet.create({
