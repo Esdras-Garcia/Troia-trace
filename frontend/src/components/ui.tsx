@@ -1,4 +1,5 @@
 import { PropsWithChildren } from 'react';
+import { BarChart3, FileCheck, Leaf, Package, type LucideIcon } from 'lucide-react-native';
 import {
   GestureResponderEvent,
   Pressable,
@@ -107,6 +108,7 @@ export function StatCard({
   change,
   description,
   tone,
+  icon,
 }: {
   title: string;
   value: string;
@@ -114,13 +116,16 @@ export function StatCard({
   change: string;
   description: string;
   tone: string;
+  icon?: LucideIcon;
 }) {
   const toneColor = tone === 'accent' ? colors.accent : tone === 'success' ? colors.success : tone === 'warning' ? colors.warning : colors.primary;
 
   return (
     <Card style={styles.statCard}>
       <View style={styles.statHeader}>
-        <View style={[styles.statIcon, { backgroundColor: `${toneColor}22` }]} />
+        <View style={[styles.statIcon, { backgroundColor: `${toneColor}22` }]}>
+          <MetricIcon color={toneColor} icon={icon} title={title} />
+        </View>
         <Badge tone={tone === 'warning' ? 'accent' : 'success'}>{change}</Badge>
       </View>
       <Text style={styles.statTitle}>{title}</Text>
@@ -158,6 +163,27 @@ function buttonStyle(variant: 'primary' | 'ghost' | 'outline') {
   }
 
   return { backgroundColor: colors.primary, borderColor: colors.primary };
+}
+
+function MetricIcon({ color, icon, title }: { color: string; icon?: LucideIcon; title: string }) {
+  if (icon) {
+    const ProvidedIcon = icon;
+    return <ProvidedIcon color={color} size={20} />;
+  }
+
+  if (title.includes('Comprovacoes')) {
+    return <FileCheck color={color} size={20} />;
+  }
+
+  if (title.includes('Reciclagem')) {
+    return <BarChart3 color={color} size={20} />;
+  }
+
+  if (title.includes('Impacto')) {
+    return <Leaf color={color} size={20} />;
+  }
+
+  return <Package color={color} size={20} />;
 }
 
 const styles = StyleSheet.create({
@@ -239,8 +265,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   statIcon: {
+    alignItems: 'center',
     borderRadius: 8,
     height: 38,
+    justifyContent: 'center',
     width: 38,
   },
   statTitle: {

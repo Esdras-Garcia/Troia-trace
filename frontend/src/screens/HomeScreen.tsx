@@ -8,7 +8,6 @@ import {
   FileCheck,
   Filter,
   Leaf,
-  Plus,
   Recycle,
   Search,
   User,
@@ -128,6 +127,7 @@ export function HomeScreen() {
 
   const pageMetadata = dashboard.shell.pages.find((item) => item.key === activePage);
   const pageTitle = pageMetadata?.title ?? [...navItems, ...bottomNavItems].find((item) => item.key === activePage)?.title ?? 'Visao Geral';
+  const canCreateComprovacao = activePage === 'overview' || activePage === 'comprovacoes';
 
   return (
     <View style={styles.app}>
@@ -144,7 +144,6 @@ export function HomeScreen() {
           query={query}
           dashboard={dashboard}
           onChangeQuery={setQuery}
-          onOpenModal={() => setModalVisible(true)}
           onNavigate={setActivePage}
         />
         <ScrollView style={styles.content} contentContainerStyle={styles.contentInner}>
@@ -152,9 +151,11 @@ export function HomeScreen() {
             <SectionTitle title={pageTitle} subtitle={pageMetadata?.subtitle} />
             <View style={styles.pageActions}>
               <Text style={styles.period}>{dashboard.shell.period}</Text>
-              <Button onPress={() => setModalVisible(true)}>
-                <Text style={styles.buttonInline}>+ Nova Comprovacao</Text>
-              </Button>
+              {canCreateComprovacao ? (
+                <Button onPress={() => setModalVisible(true)}>
+                  <Text style={styles.buttonInline}>+ Nova Comprovacao</Text>
+                </Button>
+              ) : null}
             </View>
           </View>
           <PageContent activePage={activePage} query={query} isWide={isWide} dashboard={dashboard} onNavigate={setActivePage} />
@@ -216,7 +217,6 @@ function TopHeader({
   query,
   dashboard,
   onChangeQuery,
-  onOpenModal,
   onNavigate,
 }: {
   activePage: PageKey;
@@ -224,7 +224,6 @@ function TopHeader({
   query: string;
   dashboard: DashboardData;
   onChangeQuery: (value: string) => void;
-  onOpenModal: () => void;
   onNavigate: (page: PageKey) => void;
 }) {
   if (!isWide) {
@@ -233,18 +232,15 @@ function TopHeader({
         <View style={styles.headerMobileTop}>
           <View style={styles.searchWrap}>
             <Search color={colors.muted} size={18} />
-            <Input
-              value={query}
-              onChangeText={onChangeQuery}
-              placeholder="Buscar..."
-              style={styles.searchInput}
-            />
-          </View>
-          <Pressable style={styles.iconButton} onPress={onOpenModal}>
-            <Plus color={colors.text} size={18} />
-          </Pressable>
-          <View style={styles.iconButton}>
-            <Bell color={colors.text} size={18} />
+          <Input
+            value={query}
+            onChangeText={onChangeQuery}
+            placeholder="Buscar..."
+            style={styles.searchInput}
+          />
+        </View>
+        <View style={styles.iconButton}>
+          <Bell color={colors.text} size={18} />
             <View style={styles.notificationDot}>
               <Text style={styles.notificationText}>{dashboard.shell.notificationsCount}</Text>
             </View>
@@ -277,9 +273,6 @@ function TopHeader({
         />
       </View>
       <View style={styles.headerActions}>
-        <Pressable style={styles.iconButton} onPress={onOpenModal}>
-          <Plus color={colors.text} size={18} />
-        </Pressable>
         <View style={styles.iconButton}>
           <Bell color={colors.text} size={18} />
           <View style={styles.notificationDot}>
