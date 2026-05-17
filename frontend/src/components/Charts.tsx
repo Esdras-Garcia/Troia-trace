@@ -1,30 +1,43 @@
 import { StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
+import Svg, { Circle, G, Path, Rect, Text as SvgText } from 'react-native-svg';
 
 import type { MaterialDistributionItem, VolumeItem } from '../data/dashboard';
 import { Card, colors } from './ui';
+
+const fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';
 
 export function VolumeChart({ volumeData }: { volumeData: VolumeItem[] }) {
   const max = 1800;
   const width = 620;
   const height = 230;
   const series = [
-    { key: 'plastico', color: colors.primary },
-    { key: 'papel', color: colors.accent },
-    { key: 'vidro', color: colors.success },
-    { key: 'metal', color: colors.warning },
+    { key: 'plastico', label: 'Plástico', color: colors.primary },
+    { key: 'papel', label: 'Papel', color: colors.accent },
+    { key: 'vidro', label: 'Vidro', color: colors.success },
+    { key: 'metal', label: 'Metal', color: colors.warning },
   ] as const;
+  const seriesCount = series.length;
+  const plotLeft = 46;
+  const plotRight = 580;
+  const barWidth = 12;
+  const barGap = 6;
+  const groupWidth = seriesCount * barWidth + (seriesCount - 1) * barGap;
+  const baseY = 182;
+  const firstGroupCenter = plotLeft + groupWidth / 2;
+  const lastGroupCenter = plotRight - groupWidth / 2;
+  const groupStep = volumeData.length > 1 ? (lastGroupCenter - firstGroupCenter) / (volumeData.length - 1) : 0;
 
   return (
     <Card style={styles.chartCard}>
       <Text style={styles.cardTitle}>Volume Mensal por Material</Text>
-      <Text style={styles.cardSubtitle}>Quantidade de materiais processados nos ultimos 5 meses (kg)</Text>
+      <Text style={styles.cardSubtitle}>Quantidade de materiais processados nos últimos 5 meses (kg)</Text>
       <Svg viewBox={`0 0 ${width} ${height}`} style={styles.svg}>
         {[0, 1, 2, 3].map((line) => (
-          <Path key={line} d={`M20 ${35 + line * 45} H600`} stroke={colors.border} strokeWidth={1} opacity={0.8} />
+          <Path key={line} d={`M${plotLeft} ${35 + line * 45} H${plotRight}`} stroke={colors.border} strokeWidth={1} opacity={0.8} />
         ))}
         {volumeData.map((item, index) => {
-          const x = 48 + index * 112;
+          const groupCenter = firstGroupCenter + index * groupStep;
+          const x = groupCenter - groupWidth / 2;
           return (
             <G key={item.mes}>
               {series.map((serie, serieIndex) => {
@@ -33,9 +46,9 @@ export function VolumeChart({ volumeData }: { volumeData: VolumeItem[] }) {
                 return (
                   <Rect
                     key={serie.key}
-                    x={x + serieIndex * 18}
-                    y={190 - barHeight}
-                    width={12}
+                    x={x + serieIndex * (barWidth + barGap)}
+                    y={baseY - barHeight}
+                    width={barWidth}
                     height={barHeight}
                     rx={4}
                     fill={serie.color}
@@ -43,6 +56,17 @@ export function VolumeChart({ volumeData }: { volumeData: VolumeItem[] }) {
                   />
                 );
               })}
+              <SvgText
+                fill={colors.muted}
+                fontFamily={fontFamily}
+                fontSize={12}
+                fontWeight="800"
+                textAnchor="middle"
+                x={groupCenter}
+                y={222}
+              >
+                {item.mes}
+              </SvgText>
             </G>
           );
         })}
@@ -51,7 +75,7 @@ export function VolumeChart({ volumeData }: { volumeData: VolumeItem[] }) {
         {series.map((serie) => (
           <View key={serie.key} style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: serie.color }]} />
-            <Text style={styles.legendText}>{serie.key}</Text>
+            <Text style={styles.legendText}>{serie.label}</Text>
           </View>
         ))}
       </View>
@@ -79,7 +103,7 @@ export function DistributionChart({ materialDistribution }: { materialDistributi
 
   return (
     <Card style={styles.distributionCard}>
-      <Text style={styles.cardTitle}>Distribuicao por Material</Text>
+      <Text style={styles.cardTitle}>Distribuição por Material</Text>
       <Text style={styles.cardSubtitle}>Percentual por tipo de material</Text>
       <View style={styles.donutWrap}>
         <Svg width={190} height={190} viewBox="0 0 190 190">

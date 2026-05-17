@@ -55,11 +55,11 @@ export function NovaComprovacaoModal({
         <Card style={styles.modal}>
           <View style={styles.modalHeader}>
             <View>
-              <Text style={styles.title}>{registered ? 'Comprovacao Registrada' : 'Nova Comprovacao de Lastro'}</Text>
+              <Text style={styles.title}>{registered ? 'Comprovação Registrada' : 'Nova Comprovação de Lastro'}</Text>
               <Text style={styles.subtitle}>
                 {registered
-                  ? 'A operacao recebeu um hash rastreavel para auditoria.'
-                  : 'Registre uma operacao de logistica reversa com evidencias.'}
+                  ? 'A operação recebeu um hash rastreável para auditoria.'
+                  : 'Registre uma operação de logística reversa com evidências.'}
               </Text>
             </View>
             <Pressable style={styles.closeButton} onPress={close}>
@@ -73,12 +73,12 @@ export function NovaComprovacaoModal({
                 <FileCheck color={colors.primary} size={26} />
               </View>
               <View style={styles.hashBox}>
-                <Text style={styles.fieldLabel}>ID da Comprovacao</Text>
+                <Text style={styles.fieldLabel}>ID da Comprovação</Text>
                 <Text style={styles.hashText}>{created?.id ?? 'COMP-006'}</Text>
                 <Text style={[styles.fieldLabel, styles.fieldGap]}>Hash do Lastro</Text>
                 <Text style={styles.hashText}>{created?.hashLastro ?? '0x4f8a7c2d1e9b3f6a5c8d2e7b4a9c1f3d'}</Text>
               </View>
-              <Button onPress={close}>Ver Comprovacao</Button>
+              <Button onPress={close}>Ver Comprovação</Button>
             </View>
           ) : (
             <View style={styles.form}>
@@ -93,11 +93,11 @@ export function NovaComprovacaoModal({
                 </View>
               </View>
               <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Tipo de Operacao</Text>
+                <Text style={styles.fieldLabel}>Tipo de Operação</Text>
                 <Input value={tipo} onChangeText={setTipo} />
               </View>
               <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Parceiro Responsavel</Text>
+                <Text style={styles.fieldLabel}>Parceiro Responsável</Text>
                 <Input value={parceiro} onChangeText={setParceiro} />
               </View>
               <View style={styles.uploadBox}>
@@ -106,10 +106,10 @@ export function NovaComprovacaoModal({
                 <Text style={styles.uploadText}>Notas fiscais, certificados, fotos e comprovantes.</Text>
               </View>
               <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Observacoes</Text>
+                <Text style={styles.fieldLabel}>Observações</Text>
                 <TextInput
                   multiline
-                  placeholder="Informacoes adicionais..."
+                  placeholder="Informações adicionais..."
                   placeholderTextColor={colors.muted}
                   value={observacoes}
                   onChangeText={setObservacoes}
@@ -120,7 +120,7 @@ export function NovaComprovacaoModal({
                 <Button variant="outline" onPress={close}>
                   Cancelar
                 </Button>
-                <Button onPress={submit}>{submitting ? 'Registrando...' : 'Registrar Comprovacao'}</Button>
+                <Button onPress={submit}>{submitting ? 'Registrando...' : 'Registrar Comprovação'}</Button>
               </View>
             </View>
           )}

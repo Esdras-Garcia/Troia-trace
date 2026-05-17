@@ -171,7 +171,7 @@ function MetricIcon({ color, icon, title }: { color: string; icon?: LucideIcon; 
     return <ProvidedIcon color={color} size={20} />;
   }
 
-  if (title.includes('Comprovacoes')) {
+  if (title.includes('Comprovações') || title.includes('Comprovacoes')) {
     return <FileCheck color={color} size={20} />;
   }
 

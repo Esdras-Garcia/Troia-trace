@@ -146,16 +146,16 @@ export type DashboardData = {
 };
 
 export const navItems: NavItem[] = [
-  { key: 'overview', title: 'Visao Geral', icon: LayoutDashboard },
-  { key: 'comprovacoes', title: 'Comprovacoes', icon: FileCheck },
+  { key: 'overview', title: 'Visão Geral', icon: LayoutDashboard },
+  { key: 'comprovacoes', title: 'Comprovações', icon: FileCheck },
   { key: 'materiais', title: 'Materiais', icon: Package },
-  { key: 'relatorios', title: 'Relatorios', icon: BarChart3 },
+  { key: 'relatorios', title: 'Relatórios', icon: BarChart3 },
   { key: 'parceiros', title: 'Parceiros', icon: Building2 },
   { key: 'certificados', title: 'Certificados', icon: Shield },
 ];
 
 export const bottomNavItems: NavItem[] = [
-  { key: 'configuracoes', title: 'Configuracoes', icon: Settings },
+  { key: 'configuracoes', title: 'Configurações', icon: Settings },
   { key: 'ajuda', title: 'Ajuda', icon: HelpCircle },
 ];
 

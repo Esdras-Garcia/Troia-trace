@@ -18,14 +18,14 @@ public class OpenApiController {
         paths.put("/api/dashboard", path(get("Dados agregados da tela inicial")));
         paths.put("/api/app-shell", path(getSchema("Dados de cabecalho, usuario, periodo e paginas", "AppShellData")));
         paths.put("/api/comprovacoes", path(
-            get("Lista comprovacoes com filtro opcional por query"),
-            post("Cria comprovacao de lastro", "CreateComprovacaoRequest", "ComprovacaoResponse")
+            get("Lista comprovações com filtro opcional por query"),
+            post("Cria comprovação de lastro", "CreateComprovacaoRequest", "ComprovacaoResponse")
         ));
         paths.put("/api/materiais", path(getArray("Lista materiais monitorados", "MaterialItem")));
         paths.put("/api/parceiros", path(getArray("Lista parceiros", "PartnerItem")));
         paths.put("/api/certificados", path(getArray("Lista certificados", "CertificateItem")));
-        paths.put("/api/relatorios", path(getArray("Lista relatorios", "ReportItem")));
-        paths.put("/api/configuracoes", path(getArray("Lista configuracoes", "SettingItem")));
+        paths.put("/api/relatorios", path(getArray("Lista relatórios", "ReportItem")));
+        paths.put("/api/configuracoes", path(getArray("Lista configurações", "SettingItem")));
         paths.put("/api/ajuda", path(getArray("Lista itens de ajuda", "HelpItem")));
         paths.put("/api/users", path(
             get("Lista usuarios"),
@@ -37,7 +37,7 @@ public class OpenApiController {
             "info", Map.of(
                 "title", "Troia Trace API",
                 "version", "1.0.0",
-                "description", "API para dashboard de logistica reversa, comprovacoes, parceiros, certificados e relatorios."
+                "description", "API para dashboard de logística reversa, comprovações, parceiros, certificados e relatórios."
             ),
             "servers", List.of(Map.of("url", "http://localhost:8085")),
             "paths", paths,
@@ -111,13 +111,13 @@ public class OpenApiController {
                 "status", stringExample("Pronto")
             ), List.of()));
         schemas.put("SettingItem", object(Map.of(
-                "title", stringExample("Margem de tolerancia de peso"),
-                "description", stringExample("Configuracao operacional para validar comprovacoes e certificados."),
+                "title", stringExample("Margem de tolerância de peso"),
+                "description", stringExample("Configuração operacional para validar comprovações e certificados."),
                 "progress", Map.of("type", "integer", "example", 82)
             ), List.of()));
         schemas.put("HelpItem", object(Map.of(
                 "title", stringExample("Item de ajuda"),
-                "description", stringExample("Guias para registrar comprovacoes, homologar parceiros, validar certificados e gerar relatorios ESG."),
+                "description", stringExample("Guias para registrar comprovações, homologar parceiros, validar certificados e gerar relatórios ESG."),
                 "action", stringExample("comprovacoes")
             ), List.of()));
         schemas.put("UserProfile", object(Map.of(
@@ -126,8 +126,8 @@ public class OpenApiController {
             ), List.of()));
         schemas.put("PageMetadata", object(Map.of(
                 "key", stringExample("overview"),
-                "title", stringExample("Visao Geral"),
-                "subtitle", stringExample("Acompanhe suas comprovacoes de logistica reversa."),
+                "title", stringExample("Visão Geral"),
+                "subtitle", stringExample("Acompanhe suas comprovações de logística reversa."),
                 "section", stringExample("menu")
             ), List.of()));
         schemas.put("AppShellData", object(Map.of(

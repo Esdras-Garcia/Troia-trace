@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { createElement, useEffect, useMemo, useState } from 'react';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import {
   Bell,
+  ChevronDown,
   CheckCircle2,
   Clock,
   Copy,
   FileCheck,
-  Filter,
   Leaf,
   Recycle,
   Search,
@@ -30,6 +30,7 @@ import {
 import {
   bottomNavItems,
   Comprovacao,
+  ComprovacaoStatus,
   DashboardData,
   emptyDashboard,
   HelpItem,
@@ -37,6 +38,8 @@ import {
   PageKey,
   SettingItem,
 } from '../data/dashboard';
+
+type ComprovacaoSort = 'recentes' | 'antigas' | 'maior-peso' | 'menor-peso' | 'material' | 'parceiro';
 
 export function HomeScreen() {
   const [activePage, setActivePage] = useState<PageKey>('overview');
@@ -126,8 +129,8 @@ export function HomeScreen() {
   }, [activePage, query]);
 
   const pageMetadata = dashboard.shell.pages.find((item) => item.key === activePage);
-  const pageTitle = pageMetadata?.title ?? [...navItems, ...bottomNavItems].find((item) => item.key === activePage)?.title ?? 'Visao Geral';
-  const canCreateComprovacao = activePage === 'overview' || activePage === 'comprovacoes';
+  const pageTitle = displayText(pageMetadata?.title ?? [...navItems, ...bottomNavItems].find((item) => item.key === activePage)?.title ?? 'Visão Geral');
+  const canCreateComprovacao = activePage === 'comprovacoes';
 
   return (
     <View style={styles.app}>
@@ -148,12 +151,12 @@ export function HomeScreen() {
         />
         <ScrollView style={styles.content} contentContainerStyle={styles.contentInner}>
           <View style={styles.pageHeader}>
-            <SectionTitle title={pageTitle} subtitle={pageMetadata?.subtitle} />
+            <SectionTitle title={pageTitle} subtitle={displayText(pageMetadata?.subtitle)} />
             <View style={styles.pageActions}>
               <Text style={styles.period}>{dashboard.shell.period}</Text>
               {canCreateComprovacao ? (
                 <Button onPress={() => setModalVisible(true)}>
-                  <Text style={styles.buttonInline}>+ Nova Comprovacao</Text>
+                  <Text style={styles.buttonInline}>+ Nova Comprovação</Text>
                 </Button>
               ) : null}
             </View>
@@ -174,7 +177,7 @@ function Sidebar({ activePage, dashboard, onNavigate }: { activePage: PageKey; d
         </View>
         <View>
           <Text style={styles.brandTitle}>{dashboard.shell.brandName}</Text>
-          <Text style={styles.brandSubtitle}>{dashboard.shell.brandSubtitle}</Text>
+          <Text style={styles.brandSubtitle}>{displayText(dashboard.shell.brandSubtitle)}</Text>
         </View>
       </View>
       <View style={styles.navSection}>
@@ -253,7 +256,7 @@ function TopHeader({
               style={[styles.mobileNavItem, activePage === item.key && styles.mobileNavItemActive]}
               onPress={() => onNavigate(item.key)}
             >
-              <Text style={[styles.mobileNavText, activePage === item.key && styles.mobileNavTextActive]}>{pageTitleFor(dashboard, item.key)}</Text>
+              <Text style={[styles.mobileNavText, activePage === item.key && styles.mobileNavTextActive]}>{displayText(pageTitleFor(dashboard, item.key))}</Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -268,7 +271,7 @@ function TopHeader({
         <Input
           value={query}
           onChangeText={onChangeQuery}
-          placeholder="Buscar comprovacoes, materiais..."
+          placeholder="Buscar comprovações, materiais..."
           style={styles.searchInput}
         />
       </View>
@@ -315,7 +318,7 @@ function PageContent({
       <SimpleListPage
         data={dashboard.materiais.map((item) => [item.material, item.volume, item.taxa, item.situacao])}
         title="Materiais monitorados"
-        columns={['Material', 'Volume', 'Taxa', 'Situacao']}
+        columns={['Material', 'Volume', 'Taxa', 'Situação']}
       />
     );
   }
@@ -323,8 +326,8 @@ function PageContent({
     return (
       <SimpleListPage
         data={dashboard.relatorios.map((item) => [item.relatorio, item.formato, item.status])}
-        title="Relatorios disponiveis"
-        columns={['Relatorio', 'Formato', 'Status']}
+        title="Relatórios disponíveis"
+        columns={['Relatório', 'Formato', 'Status']}
       />
     );
   }
@@ -333,7 +336,7 @@ function PageContent({
       <SimpleListPage
         data={dashboard.parceiros.map((item) => [item.parceiro, item.atuacao, item.status, item.sla])}
         title="Rede de parceiros"
-        columns={['Parceiro', 'Atuacao', 'Status', 'SLA']}
+        columns={['Parceiro', 'Atuação', 'Status', 'SLA']}
       />
     );
   }
@@ -357,12 +360,12 @@ function OverviewPage({ query, isWide, dashboard }: { query: string; isWide: boo
     <View style={styles.stack}>
       <View style={[styles.statsGrid, !isWide && styles.statsGridMobile]}>
         {dashboard.stats.map((stat) => (
-          <StatCard key={stat.title} {...stat} />
+          <StatCard key={stat.title} {...stat} title={displayText(stat.title)} description={displayText(stat.description)} />
         ))}
       </View>
       <View style={styles.gridRow}>
         <VolumeChart volumeData={dashboard.volumeData} />
-        <DistributionChart materialDistribution={dashboard.materialDistribution} />
+        <DistributionChart materialDistribution={dashboard.materialDistribution.map((item) => ({ ...item, name: displayText(item.name) }))} />
       </View>
       <View style={styles.gridRow}>
         <ComprovacoesTable query={query} comprovacoes={dashboard.comprovacoes} compact />
@@ -380,10 +383,8 @@ function ComprovacoesPage({ query, comprovacoes }: { query: string; comprovacoes
     <View style={styles.stack}>
       <Card style={styles.toolbarCard}>
         <View style={styles.toolbar}>
-          <Badge tone="primary">Lastro rastreavel</Badge>
-          <Button variant="outline">
-            <Text style={styles.buttonInline}>Filtrar</Text>
-          </Button>
+          <Badge tone="primary">Lastro rastreável</Badge>
+          <Text style={styles.toolbarText}>Use a busca ou o filtro de status na tabela.</Text>
         </View>
       </Card>
       <ComprovacoesTable query={query} comprovacoes={comprovacoes} />
@@ -392,28 +393,179 @@ function ComprovacoesPage({ query, comprovacoes }: { query: string; comprovacoes
 }
 
 function ComprovacoesTable({ query, comprovacoes, compact = false }: { query: string; comprovacoes: Comprovacao[]; compact?: boolean }) {
+  const [statusFilter, setStatusFilter] = useState<ComprovacaoStatus | 'todos'>('todos');
+  const [sortBy, setSortBy] = useState<ComprovacaoSort>('recentes');
   const filtered = useMemo(
     () =>
-      comprovacoes.filter((item) => {
-        const text = `${item.id} ${item.material} ${item.parceiro}`.toLowerCase();
-        return text.includes(query.toLowerCase());
-      }),
-    [comprovacoes, query],
+      [...comprovacoes]
+        .filter((item) => {
+          const text = normalizeSearch(`${item.id} ${item.material} ${item.parceiro} ${item.tipo}`);
+          const matchesText = text.includes(normalizeSearch(query));
+          const matchesStatus = statusFilter === 'todos' || item.status === statusFilter;
+          return matchesText && matchesStatus;
+        })
+        .sort((first, second) => sortComprovacoes(first, second, sortBy)),
+    [comprovacoes, query, sortBy, statusFilter],
   );
 
   return (
     <Card style={styles.tableCard}>
       <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>Comprovacoes Recentes</Text>
-        <Filter color={colors.muted} size={18} />
+        <Text style={styles.cardTitle}>Comprovações Recentes</Text>
+        <View style={styles.tableControls}>
+          <SortSelect value={sortBy} onChange={setSortBy} />
+          <StatusFilterSelect value={statusFilter} onChange={setStatusFilter} />
+        </View>
       </View>
       <View style={styles.table}>
         {filtered.map((item) => (
           <ComprovacaoRow key={item.id} item={item} compact={compact} />
         ))}
+        {filtered.length === 0 ? <Text style={styles.emptyText}>Nenhuma comprovação encontrada para este filtro.</Text> : null}
       </View>
     </Card>
   );
+}
+
+const statusFilterOptions: Array<{ label: string; value: ComprovacaoStatus | 'todos' }> = [
+  { label: 'Todos', value: 'todos' },
+  { label: 'Verificadas', value: 'verificado' },
+  { label: 'Pendentes', value: 'pendente' },
+  { label: 'Expiradas', value: 'expirado' },
+];
+
+const sortOptions: Array<{ label: string; value: ComprovacaoSort }> = [
+  { label: 'Mais recentes', value: 'recentes' },
+  { label: 'Mais antigas', value: 'antigas' },
+  { label: 'Maior peso', value: 'maior-peso' },
+  { label: 'Menor peso', value: 'menor-peso' },
+  { label: 'Material A-Z', value: 'material' },
+  { label: 'Parceiro A-Z', value: 'parceiro' },
+];
+
+function SortSelect({ value, onChange }: { value: ComprovacaoSort; onChange: (value: ComprovacaoSort) => void }) {
+  if (Platform.OS === 'web') {
+    return createElement(
+      'select',
+      {
+        'aria-label': 'Ordenar comprovações',
+        onChange: (event: unknown) => {
+          const target = (event as { target: { value: ComprovacaoSort } }).target;
+          onChange(target.value);
+        },
+        style: { ...webSelectStyle, width: 172 },
+        value,
+      },
+      sortOptions.map((option) => createElement('option', { key: option.value, value: option.value }, option.label)),
+    );
+  }
+
+  return (
+    <View style={styles.selectWrap}>
+      <Pressable style={styles.selectTrigger} onPress={() => onChange(nextSort(value))}>
+        <Text style={styles.selectText}>{sortLabel(value)}</Text>
+        <ChevronDown color={colors.text} size={15} />
+      </Pressable>
+    </View>
+  );
+}
+
+function StatusFilterSelect({
+  value,
+  onChange,
+}: {
+  value: ComprovacaoStatus | 'todos';
+  onChange: (value: ComprovacaoStatus | 'todos') => void;
+}) {
+  if (Platform.OS === 'web') {
+    return createElement(
+      'select',
+      {
+        'aria-label': 'Filtrar comprovações por status',
+        onChange: (event: unknown) => {
+          const target = (event as { target: { value: ComprovacaoStatus | 'todos' } }).target;
+          onChange(target.value);
+        },
+        style: webSelectStyle,
+        value,
+      },
+      statusFilterOptions.map((option) => createElement('option', { key: option.value, value: option.value }, option.label)),
+    );
+  }
+
+  return (
+    <View style={styles.selectWrap}>
+      <Pressable style={styles.selectTrigger} onPress={() => onChange(nextStatusFilter(value))}>
+        <Text style={styles.selectText}>{statusFilterLabel(value)}</Text>
+        <ChevronDown color={colors.text} size={15} />
+      </Pressable>
+    </View>
+  );
+}
+
+function sortLabel(sort: ComprovacaoSort) {
+  return sortOptions.find((option) => option.value === sort)?.label ?? 'Mais recentes';
+}
+
+function nextSort(sort: ComprovacaoSort) {
+  const currentIndex = sortOptions.findIndex((option) => option.value === sort);
+  const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % sortOptions.length : 0;
+  return sortOptions[nextIndex].value;
+}
+
+function nextStatusFilter(status: ComprovacaoStatus | 'todos') {
+  const nextStatus: Record<ComprovacaoStatus | 'todos', ComprovacaoStatus | 'todos'> = {
+    todos: 'verificado',
+    verificado: 'pendente',
+    pendente: 'expirado',
+    expirado: 'todos',
+  };
+
+  return nextStatus[status];
+}
+
+function sortComprovacoes(first: Comprovacao, second: Comprovacao, sortBy: ComprovacaoSort) {
+  if (sortBy === 'antigas') {
+    return first.dataEmissao.localeCompare(second.dataEmissao);
+  }
+
+  if (sortBy === 'maior-peso') {
+    return quantidadeValue(second.quantidade) - quantidadeValue(first.quantidade);
+  }
+
+  if (sortBy === 'menor-peso') {
+    return quantidadeValue(first.quantidade) - quantidadeValue(second.quantidade);
+  }
+
+  if (sortBy === 'material') {
+    return displayText(first.material).localeCompare(displayText(second.material), 'pt-BR');
+  }
+
+  if (sortBy === 'parceiro') {
+    return first.parceiro.localeCompare(second.parceiro, 'pt-BR');
+  }
+
+  return second.dataEmissao.localeCompare(first.dataEmissao);
+}
+
+function quantidadeValue(value: string) {
+  return Number(value.replace(/[^\d,-]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
+}
+
+function statusFilterLabel(status: ComprovacaoStatus | 'todos') {
+  if (status === 'verificado') {
+    return 'Verificadas';
+  }
+
+  if (status === 'pendente') {
+    return 'Pendentes';
+  }
+
+  if (status === 'expirado') {
+    return 'Expiradas';
+  }
+
+  return 'Todos';
 }
 
 function ComprovacaoRow({ item, compact }: { item: Comprovacao; compact: boolean }) {
@@ -421,7 +573,7 @@ function ComprovacaoRow({ item, compact }: { item: Comprovacao; compact: boolean
     <View style={styles.tableRow}>
       <View style={styles.tableMain}>
         <Text style={styles.tableId}>{item.id}</Text>
-        <Text style={styles.tableSub}>{item.material} • {item.tipo}</Text>
+        <Text style={styles.tableSub}>{displayText(item.material)} • {displayText(item.tipo)}</Text>
       </View>
       {!compact ? (
         <View style={styles.hashPill}>
@@ -465,7 +617,7 @@ function ImpactMetrics({ metrics }: { metrics: DashboardData['impactMetrics'] })
         return (
           <View key={metric.title} style={styles.metricBlock}>
             <View style={styles.metricHeader}>
-              <Text style={styles.metricTitle}>{metric.title}</Text>
+              <Text style={styles.metricTitle}>{displayText(metric.title)}</Text>
               <Text style={styles.metricValue}>
                 {metric.value.toLocaleString('pt-BR')} / {metric.target.toLocaleString('pt-BR')} {metric.unit}
               </Text>
@@ -486,7 +638,7 @@ function RecentActivity({ activities }: { activities: string[] }) {
       {activities.map((activity, index) => (
         <View key={activity} style={styles.activityRow}>
           <View style={[styles.activityDot, { backgroundColor: index === 1 ? colors.accent : colors.primary }]} />
-          <Text style={styles.activityText}>{activity}</Text>
+          <Text style={styles.activityText}>{displayText(activity)}</Text>
         </View>
       ))}
     </Card>
@@ -498,18 +650,18 @@ function SimpleListPage({ title, columns, data }: { title: string; columns: stri
     <View style={styles.stack}>
       <Card>
         <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>{title}</Text>
+          <Text style={styles.cardTitle}>{displayText(title)}</Text>
           <Badge tone="primary">Atualizado</Badge>
         </View>
         <View style={styles.listHeader}>
           {columns.map((column) => (
-            <Text key={column} style={styles.listHeaderText}>{column}</Text>
+            <Text key={column} style={styles.listHeaderText}>{displayText(column)}</Text>
           ))}
         </View>
         {data.map((row) => (
           <View key={row.join('-')} style={styles.listRow}>
             {row.map((cell, index) => (
-              <Text key={cell} style={[styles.listCell, index === 0 && styles.listCellStrong]}>{cell}</Text>
+              <Text key={cell} style={[styles.listCell, index === 0 && styles.listCellStrong]}>{displayText(cell)}</Text>
             ))}
           </View>
         ))}
@@ -523,8 +675,8 @@ function SettingsPage({ settings }: { settings: SettingItem[] }) {
     <View style={styles.settingsGrid}>
       {settings.map((item, index) => (
         <Card key={item.title} style={styles.settingCard}>
-          <Text style={styles.cardTitle}>{item.title}</Text>
-          <Text style={styles.tableSub}>{item.description}</Text>
+          <Text style={styles.cardTitle}>{displayText(item.title)}</Text>
+          <Text style={styles.tableSub}>{displayText(item.description)}</Text>
           <Progress value={item.progress} color={[colors.primary, colors.accent, colors.success, colors.warning][index]} />
         </Card>
       ))}
@@ -537,23 +689,105 @@ function HelpPage({ items, onNavigate }: { items: HelpItem[]; onNavigate: (page:
     <View style={styles.gridRow}>
       <Card style={styles.helpCard}>
         <Wind color={colors.primary} size={28} />
-        <Text style={styles.helpTitle}>{items[0]?.title}</Text>
-        <Text style={styles.helpText}>{items[0]?.description}</Text>
-        <Button onPress={() => items[0]?.action && onNavigate(items[0].action)}>Abrir comprovacoes</Button>
+        <Text style={styles.helpTitle}>{displayText(items[0]?.title)}</Text>
+        <Text style={styles.helpText}>{displayText(items[0]?.description)}</Text>
+        <Button onPress={() => items[0]?.action && onNavigate(items[0].action)}>Abrir comprovações</Button>
       </Card>
       <Card style={styles.helpCard}>
         <FileCheck color={colors.accent} size={28} />
-        <Text style={styles.helpTitle}>{items[1]?.title}</Text>
-        <Text style={styles.helpText}>{items[1]?.description}</Text>
-        <Button variant="outline" onPress={() => items[1]?.action && onNavigate(items[1].action)}>Ver configuracoes</Button>
+        <Text style={styles.helpTitle}>{displayText(items[1]?.title)}</Text>
+        <Text style={styles.helpText}>{displayText(items[1]?.description)}</Text>
+        <Button variant="outline" onPress={() => items[1]?.action && onNavigate(items[1].action)}>Ver configurações</Button>
       </Card>
     </View>
   );
 }
 
 function pageTitleFor(dashboard: DashboardData, key: PageKey) {
-  return dashboard.shell.pages.find((page) => page.key === key)?.title ?? [...navItems, ...bottomNavItems].find((item) => item.key === key)?.title ?? key;
+  return displayText(dashboard.shell.pages.find((page) => page.key === key)?.title ?? [...navItems, ...bottomNavItems].find((item) => item.key === key)?.title ?? key);
 }
+
+const textCorrections: Record<string, string> = {
+  Agua: 'Água',
+  Aluminio: 'Alumínio',
+  'Arvores Preservadas': 'Árvores Preservadas',
+  'Acompanhe suas comprovacoes de logistica reversa.': 'Acompanhe suas comprovações de logística reversa.',
+  'Campos obrigatorios': 'Campos obrigatórios',
+  'Central de ajuda': 'Central de ajuda',
+  'Certificados validos': 'Certificados válidos',
+  'Checklist de implantacao': 'Checklist de implantação',
+  Comprovacoes: 'Comprovações',
+  'Comprovacoes Ativas': 'Comprovações Ativas',
+  Configuracoes: 'Configurações',
+  'Configuracao operacional para validar comprovacoes e certificados.': 'Configuração operacional para validar comprovações e certificados.',
+  'Consulte e registre operacoes com hash de lastro.': 'Consulte e registre operações com hash de lastro.',
+  'Controle volumes, categorias e eficiencia por material.': 'Controle volumes, categorias e eficiência por material.',
+  'Destinacao': 'Destinação',
+  'Divergencias abertas': 'Divergências abertas',
+  'Em analise': 'Em análise',
+  'emissoes evitadas': 'emissões evitadas',
+  'Empresa, unidades, materiais, parceiros, templates e certificados iniciais.': 'Empresa, unidades, materiais, parceiros, templates e certificados iniciais.',
+  'Encontre orientacoes para operar a plataforma.': 'Encontre orientações para operar a plataforma.',
+  'Exporte rastreabilidade, fiscalizacao e indicadores ESG.': 'Exporte rastreabilidade, fiscalização e indicadores ESG.',
+  'Guias para registrar comprovacoes, homologar parceiros, validar certificados e gerar relatorios ESG.': 'Guias para registrar comprovações, homologar parceiros, validar certificados e gerar relatórios ESG.',
+  'Impacto Ambiental': 'Impacto Ambiental',
+  'Logistica Reversa': 'Logística Reversa',
+  'Margem de tolerancia de peso': 'Margem de tolerância de peso',
+  'Materiais Rastreados': 'Materiais Rastreados',
+  'Notificacoes fiscais': 'Notificações fiscais',
+  Papelao: 'Papelão',
+  'Pendente validacao': 'Pendente validação',
+  Plastico: 'Plástico',
+  'Plastico PEAD': 'Plástico PEAD',
+  'Plastico PET': 'Plástico PET',
+  'Regras de aprovacao': 'Regras de aprovação',
+  Relatorios: 'Relatórios',
+  'Relatorio ESG de maio exportado': 'Relatório ESG de maio exportado',
+  'Taxa de Reciclagem': 'Taxa de Reciclagem',
+  'Troia Trace': 'Troia Trace',
+  'Visao Geral': 'Visão Geral',
+  'Ajuste regras, tolerancias, notificacoes e permissao.': 'Ajuste regras, tolerâncias, notificações e permissão.',
+  'Certificado de PlastiCycle aguardando revisao': 'Certificado de PlastiCycle aguardando revisão',
+  'certificados validos': 'certificados válidos',
+  'eficiencia do processo': 'eficiência do processo',
+  'vs. mes anterior': 'vs. mês anterior',
+};
+
+function displayText(value?: string | null) {
+  if (!value) {
+    return '';
+  }
+
+  return textCorrections[value] ?? value;
+}
+
+function normalizeSearch(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+const webSelectStyle = {
+  appearance: 'none',
+  backgroundColor: colors.cardSoft,
+  backgroundImage: `url("data:image/svg+xml,%3Csvg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23f4f6fb' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+  backgroundPosition: 'right 13px center',
+  backgroundRepeat: 'no-repeat',
+  backgroundSize: '14px 14px',
+  border: `1px solid ${colors.text}`,
+  borderRadius: 8,
+  color: colors.text,
+  cursor: 'pointer',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
+  fontSize: 12,
+  fontWeight: 900,
+  height: 36,
+  lineHeight: '36px',
+  outline: 'none',
+  padding: '0 34px 0 12px',
+  width: 150,
+};
 
 const styles = StyleSheet.create({
   app: {
@@ -805,9 +1039,17 @@ const styles = StyleSheet.create({
   cardHeader: {
     alignItems: 'center',
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
     justifyContent: 'space-between',
     marginBottom: 14,
+  },
+  tableControls: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'flex-end',
   },
   cardTitleRow: {
     alignItems: 'center',
@@ -932,6 +1174,38 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     justifyContent: 'space-between',
+  },
+  toolbarText: {
+    color: colors.muted,
+    flex: 1,
+    fontSize: 13,
+    textAlign: 'right',
+  },
+  selectWrap: {
+    minWidth: 148,
+  },
+  selectTrigger: {
+    alignItems: 'center',
+    backgroundColor: colors.cardSoft,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'space-between',
+    minHeight: 34,
+    paddingHorizontal: 10,
+  },
+  selectText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  emptyText: {
+    color: colors.muted,
+    fontSize: 13,
+    padding: 12,
+    textAlign: 'center',
   },
   listHeader: {
     borderBottomColor: colors.border,

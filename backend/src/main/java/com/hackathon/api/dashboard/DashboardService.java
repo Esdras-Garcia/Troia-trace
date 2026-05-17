@@ -59,10 +59,7 @@ public class DashboardService {
             )
             """);
 
-        Integer count = jdbc.queryForObject("select count(*) from dashboard_seed_data", Integer.class);
-        if (count != null && count == 0) {
-            seedInitialData();
-        }
+        refreshStaticSeedData();
     }
 
     DashboardData dashboard() {
@@ -161,7 +158,10 @@ public class DashboardService {
         return readList("activities", String.class);
     }
 
-    private void seedInitialData() {
+    private void refreshStaticSeedData() {
+        jdbc.update("delete from dashboard_seed_data where category <> 'comprovacoes'");
+        jdbc.update("delete from dashboard_seed_data where category = 'comprovacoes' and item_key not like 'COMP-%'");
+
         JsonNode root = readSeedFile();
         root.fields().forEachRemaining(entry -> {
             String category = entry.getKey();
@@ -184,7 +184,7 @@ public class DashboardService {
         try {
             return objectMapper.readTree(new ClassPathResource("db/seed/dashboard-seed.json").getInputStream());
         } catch (IOException exception) {
-            throw new IllegalStateException("Nao foi possivel carregar dados iniciais do banco", exception);
+            throw new IllegalStateException("Não foi possível carregar dados iniciais do banco", exception);
         }
     }
 
@@ -198,7 +198,7 @@ public class DashboardService {
                 objectMapper.writeValueAsString(payload)
             );
         } catch (JsonProcessingException exception) {
-            throw new IllegalStateException("Nao foi possivel serializar dados iniciais", exception);
+            throw new IllegalStateException("Não foi possível serializar dados iniciais", exception);
         }
     }
 
@@ -220,7 +220,7 @@ public class DashboardService {
         try {
             return objectMapper.readValue(payload, type);
         } catch (JsonProcessingException exception) {
-            throw new IllegalStateException("Nao foi possivel ler dados do banco", exception);
+            throw new IllegalStateException("Não foi possível ler dados do banco", exception);
         }
     }
 
