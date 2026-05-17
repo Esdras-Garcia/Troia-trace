@@ -97,8 +97,7 @@ export function DistributionChart({ materialDistribution }: { materialDistributi
                 strokeDashoffset={-item.offset}
                 strokeLinecap="round"
                 fill="transparent"
-                rotation="-90"
-                origin="95, 95"
+                transform="rotate(-90 95 95)"
               />
             );
           })}
