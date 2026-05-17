@@ -2,20 +2,51 @@ import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { FileCheck, Upload, X } from 'lucide-react-native';
 
+import { createComprovacao } from '../api/client';
+import type { Comprovacao } from '../data/dashboard';
 import { Button, Card, colors, Input } from './ui';
 
 export function NovaComprovacaoModal({
   visible,
   onClose,
+  onCreated,
 }: {
   visible: boolean;
   onClose: () => void;
+  onCreated?: (comprovacao: Comprovacao) => void;
 }) {
   const [registered, setRegistered] = useState(false);
+  const [created, setCreated] = useState<Comprovacao | null>(null);
+  const [material, setMaterial] = useState('Plastico PET');
+  const [quantidadeKg, setQuantidadeKg] = useState('1250');
+  const [tipo, setTipo] = useState('Coleta');
+  const [parceiro, setParceiro] = useState('RecycleTech Ltda');
+  const [observacoes, setObservacoes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   function close() {
     setRegistered(false);
+    setCreated(null);
+    setSubmitting(false);
     onClose();
+  }
+
+  async function submit() {
+    setSubmitting(true);
+    try {
+      const comprovacao = await createComprovacao({
+        material,
+        quantidadeKg: Number(quantidadeKg.replace(',', '.')),
+        tipo,
+        parceiro,
+        observacoes,
+      });
+      setCreated(comprovacao);
+      onCreated?.(comprovacao);
+      setRegistered(true);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -43,9 +74,9 @@ export function NovaComprovacaoModal({
               </View>
               <View style={styles.hashBox}>
                 <Text style={styles.fieldLabel}>ID da Comprovacao</Text>
-                <Text style={styles.hashText}>COMP-006</Text>
+                <Text style={styles.hashText}>{created?.id ?? 'COMP-006'}</Text>
                 <Text style={[styles.fieldLabel, styles.fieldGap]}>Hash do Lastro</Text>
-                <Text style={styles.hashText}>0x4f8a7c2d1e9b3f6a5c8d2e7b4a9c1f3d</Text>
+                <Text style={styles.hashText}>{created?.hashLastro ?? '0x4f8a7c2d1e9b3f6a5c8d2e7b4a9c1f3d'}</Text>
               </View>
               <Button onPress={close}>Ver Comprovacao</Button>
             </View>
@@ -54,20 +85,20 @@ export function NovaComprovacaoModal({
               <View style={styles.twoCols}>
                 <View style={styles.field}>
                   <Text style={styles.fieldLabel}>Material</Text>
-                  <Input value="Plastico PET" />
+                  <Input value={material} onChangeText={setMaterial} />
                 </View>
                 <View style={styles.field}>
                   <Text style={styles.fieldLabel}>Quantidade (kg)</Text>
-                  <Input value="1250" />
+                  <Input value={quantidadeKg} onChangeText={setQuantidadeKg} />
                 </View>
               </View>
               <View style={styles.field}>
                 <Text style={styles.fieldLabel}>Tipo de Operacao</Text>
-                <Input value="Coleta" />
+                <Input value={tipo} onChangeText={setTipo} />
               </View>
               <View style={styles.field}>
                 <Text style={styles.fieldLabel}>Parceiro Responsavel</Text>
-                <Input value="RecycleTech Ltda" />
+                <Input value={parceiro} onChangeText={setParceiro} />
               </View>
               <View style={styles.uploadBox}>
                 <Upload color={colors.muted} size={28} />
@@ -80,6 +111,8 @@ export function NovaComprovacaoModal({
                   multiline
                   placeholder="Informacoes adicionais..."
                   placeholderTextColor={colors.muted}
+                  value={observacoes}
+                  onChangeText={setObservacoes}
                   style={styles.textArea}
                 />
               </View>
@@ -87,7 +120,7 @@ export function NovaComprovacaoModal({
                 <Button variant="outline" onPress={close}>
                   Cancelar
                 </Button>
-                <Button onPress={() => setRegistered(true)}>Registrar Comprovacao</Button>
+                <Button onPress={submit}>{submitting ? 'Registrando...' : 'Registrar Comprovacao'}</Button>
               </View>
             </View>
           )}

@@ -2,18 +2,19 @@ spring:
   application:
     name: hackathon-api
   datasource:
-    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:hackathon}
-    username: ${POSTGRES_USER:hackathon}
-    password: ${POSTGRES_PASSWORD:hackathon}
+    url: ${DATABASE_URL:jdbc:h2:file:./data/hackathon;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH}
+    username: ${DATABASE_USERNAME:sa}
+    password: ${DATABASE_PASSWORD:}
+    driver-class-name: ${DATABASE_DRIVER:org.h2.Driver}
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: ${JPA_DDL_AUTO:update}
     open-in-view: false
   flyway:
     enabled: true
 
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${SERVER_PORT:8085}
 
 management:
   endpoints:

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import {
   Bell,
@@ -19,32 +19,122 @@ import { DistributionChart, VolumeChart } from '../components/Charts';
 import { NovaComprovacaoModal } from '../components/NovaComprovacaoModal';
 import { Badge, Button, Card, colors, Input, Progress, SectionTitle, StatCard } from '../components/ui';
 import {
-  activities,
+  getAjuda,
+  getCertificados,
+  getComprovacoes,
+  getConfiguracoes,
+  getDashboard,
+  getMateriais,
+  getParceiros,
+  getRelatorios,
+} from '../api/client';
+import {
   bottomNavItems,
-  certificados,
-  comprovacoes,
   Comprovacao,
-  impactMetrics,
-  materiais,
+  DashboardData,
+  HelpItem,
+  initialDashboard,
   navItems,
   PageKey,
-  parceiros,
-  relatorios,
-  stats,
+  SettingItem,
 } from '../data/dashboard';
 
 export function HomeScreen() {
   const [activePage, setActivePage] = useState<PageKey>('overview');
   const [query, setQuery] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
+  const [dashboard, setDashboard] = useState<DashboardData>(initialDashboard);
   const { width } = useWindowDimensions();
   const isWide = width >= 980;
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadPage() {
+      try {
+        if (activePage === 'overview') {
+          const data = await getDashboard();
+          if (active) {
+            setDashboard(data);
+          }
+          return;
+        }
+
+        if (activePage === 'comprovacoes') {
+          const comprovacoes = await getComprovacoes(query);
+          if (active) {
+            setDashboard((current) => ({ ...current, comprovacoes }));
+          }
+          return;
+        }
+
+        if (activePage === 'materiais') {
+          const materiais = await getMateriais();
+          if (active) {
+            setDashboard((current) => ({ ...current, materiais }));
+          }
+          return;
+        }
+
+        if (activePage === 'relatorios') {
+          const relatorios = await getRelatorios();
+          if (active) {
+            setDashboard((current) => ({ ...current, relatorios }));
+          }
+          return;
+        }
+
+        if (activePage === 'parceiros') {
+          const parceiros = await getParceiros();
+          if (active) {
+            setDashboard((current) => ({ ...current, parceiros }));
+          }
+          return;
+        }
+
+        if (activePage === 'certificados') {
+          const certificados = await getCertificados();
+          if (active) {
+            setDashboard((current) => ({ ...current, certificados }));
+          }
+          return;
+        }
+
+        if (activePage === 'configuracoes') {
+          const configuracoes = await getConfiguracoes();
+          if (active) {
+            setDashboard((current) => ({ ...current, configuracoes }));
+          }
+          return;
+        }
+
+        const ajuda = await getAjuda();
+        if (active) {
+          setDashboard((current) => ({ ...current, ajuda }));
+        }
+      } catch {
+        if (active) {
+          setDashboard(initialDashboard);
+        }
+      }
+    }
+
+    loadPage();
+
+    return () => {
+      active = false;
+    };
+  }, [activePage, query]);
 
   const pageTitle = [...navItems, ...bottomNavItems].find((item) => item.key === activePage)?.title ?? 'Visao Geral';
 
   return (
     <View style={styles.app}>
-      <NovaComprovacaoModal visible={modalVisible} onClose={() => setModalVisible(false)} />
+      <NovaComprovacaoModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        onCreated={(comprovacao) => setDashboard((current) => ({ ...current, comprovacoes: [comprovacao, ...current.comprovacoes] }))}
+      />
       {isWide ? <Sidebar activePage={activePage} onNavigate={setActivePage} /> : null}
       <View style={styles.contentShell}>
         <TopHeader
@@ -65,7 +155,7 @@ export function HomeScreen() {
               </Button>
             </View>
           </View>
-          <PageContent activePage={activePage} query={query} isWide={isWide} onNavigate={setActivePage} />
+          <PageContent activePage={activePage} query={query} isWide={isWide} dashboard={dashboard} onNavigate={setActivePage} />
         </ScrollView>
       </View>
     </View>
@@ -208,61 +298,63 @@ function PageContent({
   activePage,
   query,
   isWide,
+  dashboard,
   onNavigate,
 }: {
   activePage: PageKey;
   query: string;
   isWide: boolean;
+  dashboard: DashboardData;
   onNavigate: (page: PageKey) => void;
 }) {
   if (activePage === 'overview') {
-    return <OverviewPage query={query} isWide={isWide} />;
+    return <OverviewPage query={query} isWide={isWide} dashboard={dashboard} />;
   }
   if (activePage === 'comprovacoes') {
-    return <ComprovacoesPage query={query} />;
+    return <ComprovacoesPage query={query} comprovacoes={dashboard.comprovacoes} />;
   }
   if (activePage === 'materiais') {
-    return <SimpleListPage data={materiais} title="Materiais monitorados" columns={['Material', 'Volume', 'Taxa', 'Situacao']} />;
+    return <SimpleListPage data={dashboard.materiais} title="Materiais monitorados" columns={['Material', 'Volume', 'Taxa', 'Situacao']} />;
   }
   if (activePage === 'relatorios') {
-    return <SimpleListPage data={relatorios} title="Relatorios disponiveis" columns={['Relatorio', 'Formato', 'Status']} />;
+    return <SimpleListPage data={dashboard.relatorios} title="Relatorios disponiveis" columns={['Relatorio', 'Formato', 'Status']} />;
   }
   if (activePage === 'parceiros') {
-    return <SimpleListPage data={parceiros} title="Rede de parceiros" columns={['Parceiro', 'Atuacao', 'Status', 'SLA']} />;
+    return <SimpleListPage data={dashboard.parceiros} title="Rede de parceiros" columns={['Parceiro', 'Atuacao', 'Status', 'SLA']} />;
   }
   if (activePage === 'certificados') {
-    return <SimpleListPage data={certificados} title="Certificados e laudos" columns={['ID', 'Material', 'Status', 'Data']} />;
+    return <SimpleListPage data={dashboard.certificados} title="Certificados e laudos" columns={['ID', 'Material', 'Status', 'Data']} />;
   }
   if (activePage === 'configuracoes') {
-    return <SettingsPage />;
+    return <SettingsPage settings={dashboard.configuracoes} />;
   }
-  return <HelpPage onNavigate={onNavigate} />;
+  return <HelpPage items={dashboard.ajuda} onNavigate={onNavigate} />;
 }
 
-function OverviewPage({ query, isWide }: { query: string; isWide: boolean }) {
+function OverviewPage({ query, isWide, dashboard }: { query: string; isWide: boolean; dashboard: DashboardData }) {
   return (
     <View style={styles.stack}>
       <View style={[styles.statsGrid, !isWide && styles.statsGridMobile]}>
-        {stats.map((stat) => (
+        {dashboard.stats.map((stat) => (
           <StatCard key={stat.title} {...stat} />
         ))}
       </View>
       <View style={styles.gridRow}>
-        <VolumeChart />
-        <DistributionChart />
+        <VolumeChart volumeData={dashboard.volumeData} />
+        <DistributionChart materialDistribution={dashboard.materialDistribution} />
       </View>
       <View style={styles.gridRow}>
-        <ComprovacoesTable query={query} compact />
+        <ComprovacoesTable query={query} comprovacoes={dashboard.comprovacoes} compact />
         <View style={styles.sideColumn}>
-          <ImpactMetrics />
-          <RecentActivity />
+          <ImpactMetrics metrics={dashboard.impactMetrics} />
+          <RecentActivity activities={dashboard.activities} />
         </View>
       </View>
     </View>
   );
 }
 
-function ComprovacoesPage({ query }: { query: string }) {
+function ComprovacoesPage({ query, comprovacoes }: { query: string; comprovacoes: Comprovacao[] }) {
   return (
     <View style={styles.stack}>
       <Card style={styles.toolbarCard}>
@@ -273,19 +365,19 @@ function ComprovacoesPage({ query }: { query: string }) {
           </Button>
         </View>
       </Card>
-      <ComprovacoesTable query={query} />
+      <ComprovacoesTable query={query} comprovacoes={comprovacoes} />
     </View>
   );
 }
 
-function ComprovacoesTable({ query, compact = false }: { query: string; compact?: boolean }) {
+function ComprovacoesTable({ query, comprovacoes, compact = false }: { query: string; comprovacoes: Comprovacao[]; compact?: boolean }) {
   const filtered = useMemo(
     () =>
       comprovacoes.filter((item) => {
         const text = `${item.id} ${item.material} ${item.parceiro}`.toLowerCase();
         return text.includes(query.toLowerCase());
       }),
-    [query],
+    [comprovacoes, query],
   );
 
   return (
@@ -339,14 +431,14 @@ function StatusBadge({ status }: { status: Comprovacao['status'] }) {
   );
 }
 
-function ImpactMetrics() {
+function ImpactMetrics({ metrics }: { metrics: DashboardData['impactMetrics'] }) {
   return (
     <Card style={styles.sideCard}>
       <View style={styles.cardTitleRow}>
         <Leaf color={colors.primary} size={18} />
         <Text style={styles.cardTitle}>Impacto Ambiental</Text>
       </View>
-      {impactMetrics.map((metric, index) => {
+      {metrics.map((metric, index) => {
         const percentage = Math.round((metric.value / metric.target) * 100);
         const color = [colors.primary, colors.accent, colors.success, colors.warning][index];
         return (
@@ -366,7 +458,7 @@ function ImpactMetrics() {
   );
 }
 
-function RecentActivity() {
+function RecentActivity({ activities }: { activities: string[] }) {
   return (
     <Card style={styles.sideCard}>
       <Text style={styles.cardTitle}>Atividade Recente</Text>
@@ -405,35 +497,34 @@ function SimpleListPage({ title, columns, data }: { title: string; columns: stri
   );
 }
 
-function SettingsPage() {
-  const settings = ['Margem de tolerancia de peso', 'Campos obrigatorios', 'Regras de aprovacao', 'Notificacoes fiscais'];
+function SettingsPage({ settings }: { settings: SettingItem[] }) {
   return (
     <View style={styles.settingsGrid}>
       {settings.map((item, index) => (
-        <Card key={item} style={styles.settingCard}>
-          <Text style={styles.cardTitle}>{item}</Text>
-          <Text style={styles.tableSub}>Configuracao operacional para validar comprovacoes e certificados.</Text>
-          <Progress value={[82, 65, 91, 48][index]} color={[colors.primary, colors.accent, colors.success, colors.warning][index]} />
+        <Card key={item.title} style={styles.settingCard}>
+          <Text style={styles.cardTitle}>{item.title}</Text>
+          <Text style={styles.tableSub}>{item.description}</Text>
+          <Progress value={item.progress} color={[colors.primary, colors.accent, colors.success, colors.warning][index]} />
         </Card>
       ))}
     </View>
   );
 }
 
-function HelpPage({ onNavigate }: { onNavigate: (page: PageKey) => void }) {
+function HelpPage({ items, onNavigate }: { items: HelpItem[]; onNavigate: (page: PageKey) => void }) {
   return (
     <View style={styles.gridRow}>
       <Card style={styles.helpCard}>
         <Wind color={colors.primary} size={28} />
-        <Text style={styles.helpTitle}>Central de ajuda</Text>
-        <Text style={styles.helpText}>Guias para registrar comprovacoes, homologar parceiros, validar certificados e gerar relatorios ESG.</Text>
-        <Button onPress={() => onNavigate('comprovacoes')}>Abrir comprovacoes</Button>
+        <Text style={styles.helpTitle}>{items[0]?.title ?? 'Central de ajuda'}</Text>
+        <Text style={styles.helpText}>{items[0]?.description}</Text>
+        <Button onPress={() => onNavigate(items[0]?.action ?? 'comprovacoes')}>Abrir comprovacoes</Button>
       </Card>
       <Card style={styles.helpCard}>
         <FileCheck color={colors.accent} size={28} />
-        <Text style={styles.helpTitle}>Checklist de implantacao</Text>
-        <Text style={styles.helpText}>Empresa, unidades, materiais, parceiros, templates e certificados iniciais.</Text>
-        <Button variant="outline" onPress={() => onNavigate('configuracoes')}>Ver configuracoes</Button>
+        <Text style={styles.helpTitle}>{items[1]?.title ?? 'Checklist de implantacao'}</Text>
+        <Text style={styles.helpText}>{items[1]?.description}</Text>
+        <Button variant="outline" onPress={() => onNavigate(items[1]?.action ?? 'configuracoes')}>Ver configuracoes</Button>
       </Card>
     </View>
   );

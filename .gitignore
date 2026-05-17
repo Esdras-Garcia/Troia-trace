@@ -10,6 +10,7 @@ Thumbs.db
 backend/.gradle/
 backend/build/
 backend/out/
+backend/data/
 
 # Node / Expo
 frontend/node_modules/

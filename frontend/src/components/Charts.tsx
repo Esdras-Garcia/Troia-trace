@@ -1,10 +1,10 @@
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
 
-import { materialDistribution, volumeData } from '../data/dashboard';
+import type { MaterialDistributionItem, VolumeItem } from '../data/dashboard';
 import { Card, colors } from './ui';
 
-export function VolumeChart() {
+export function VolumeChart({ volumeData }: { volumeData: VolumeItem[] }) {
   const max = 1800;
   const width = 620;
   const height = 230;
@@ -59,7 +59,7 @@ export function VolumeChart() {
   );
 }
 
-export function DistributionChart() {
+export function DistributionChart({ materialDistribution }: { materialDistribution: MaterialDistributionItem[] }) {
   const radius = 72;
   const circumference = 2 * Math.PI * radius;
   const segments = materialDistribution.reduce<Array<{ name: string; value: number; color: string; length: number; offset: number }>>(

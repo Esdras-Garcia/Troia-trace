@@ -37,6 +37,59 @@ export type Comprovacao = {
   dataEmissao: string;
   status: ComprovacaoStatus;
   tipo: string;
+  observacoes?: string | null;
+};
+
+export type Stat = {
+  title: string;
+  value: string;
+  unit: string;
+  change: string;
+  trend: string;
+  description: string;
+  tone: string;
+};
+export type VolumeItem = {
+  mes: string;
+  plastico: number;
+  papel: number;
+  vidro: number;
+  metal: number;
+};
+export type MaterialDistributionItem = {
+  name: string;
+  value: number;
+  color: string;
+};
+export type ImpactMetric = {
+  title: string;
+  value: number;
+  target: number;
+  unit: string;
+};
+export type SettingItem = {
+  title: string;
+  description: string;
+  progress: number;
+};
+export type HelpItem = {
+  title: string;
+  description: string;
+  action: PageKey;
+};
+export type DashboardData = {
+  stats: Stat[];
+  comprovacoes: Comprovacao[];
+  volumeData: VolumeItem[];
+  materialDistribution: MaterialDistributionItem[];
+  impactMetrics: ImpactMetric[];
+  activities: string[];
+  materiais: string[][];
+  parceiros: string[][];
+  certificados: string[][];
+  relatorios: string[][];
+  configuracoes: SettingItem[];
+  ajuda: HelpItem[];
 };
 
 export const navItems: NavItem[] = [
@@ -202,3 +255,38 @@ export const relatorios = [
   ['Divergencias abertas', 'CSV', 'Gerando'],
   ['Comprovatorio fiscal', 'PDF', 'Pendente'],
 ];
+
+export const configuracoes: SettingItem[] = [
+  { title: 'Margem de tolerancia de peso', description: 'Configuracao operacional para validar comprovacoes e certificados.', progress: 82 },
+  { title: 'Campos obrigatorios', description: 'Configuracao operacional para validar comprovacoes e certificados.', progress: 65 },
+  { title: 'Regras de aprovacao', description: 'Configuracao operacional para validar comprovacoes e certificados.', progress: 91 },
+  { title: 'Notificacoes fiscais', description: 'Configuracao operacional para validar comprovacoes e certificados.', progress: 48 },
+];
+
+export const ajuda: HelpItem[] = [
+  {
+    title: 'Central de ajuda',
+    description: 'Guias para registrar comprovacoes, homologar parceiros, validar certificados e gerar relatorios ESG.',
+    action: 'comprovacoes',
+  },
+  {
+    title: 'Checklist de implantacao',
+    description: 'Empresa, unidades, materiais, parceiros, templates e certificados iniciais.',
+    action: 'configuracoes',
+  },
+];
+
+export const initialDashboard: DashboardData = {
+  stats,
+  comprovacoes,
+  volumeData,
+  materialDistribution,
+  impactMetrics,
+  activities,
+  materiais,
+  parceiros,
+  certificados,
+  relatorios,
+  configuracoes,
+  ajuda,
+};

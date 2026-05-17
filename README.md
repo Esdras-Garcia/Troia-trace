@@ -3,8 +3,8 @@
 Monorepo para um app mobile com:
 
 - Frontend: React Native com Expo
-- Backend: Java 25 com Spring Boot
-- Banco: PostgreSQL
+- Backend: Java 21 com Spring Boot
+- Banco: H2 local por padrao
 
 ## Estrutura
 
@@ -12,22 +12,14 @@ Monorepo para um app mobile com:
 .
 ├── backend/          # API Java/Spring Boot
 ├── frontend/         # App mobile React Native/Expo
-├── infra/            # Infra local e variaveis de ambiente
-└── docker-compose.yml
+└── infra/            # Variaveis de ambiente opcionais
 ```
 
 ## Requisitos
 
-- Java 25
+- Java 21
 - Gradle 9.1+ ou Maven equivalente caso migre o build
 - Node.js 20.19+
-- Docker e Docker Compose
-
-## Subir banco local
-
-```bash
-docker compose up -d postgres
-```
 
 ## Rodar backend
 
@@ -36,7 +28,9 @@ cd backend
 gradle bootRun
 ```
 
-A API sobe em `http://localhost:8080`.
+A API sobe em `http://localhost:8085`.
+
+Swagger: `http://localhost:8085/swagger-ui.html`.
 
 ## Rodar frontend
 
