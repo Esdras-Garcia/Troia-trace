@@ -7,15 +7,16 @@ import { Card, colors } from './ui';
 const fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';
 
 export function VolumeChart({ volumeData }: { volumeData: VolumeItem[] }) {
-  const max = 1800;
   const width = 620;
   const height = 230;
   const series = [
-    { key: 'plastico', label: 'Plástico', color: colors.primary },
-    { key: 'papel', label: 'Papel', color: colors.accent },
-    { key: 'vidro', label: 'Vidro', color: colors.success },
-    { key: 'metal', label: 'Metal', color: colors.warning },
+    { key: 'plastico', aliases: ['plastico', 'plástico'], label: 'Plástico', color: colors.primary },
+    { key: 'papel', aliases: ['papel'], label: 'Papel', color: colors.accent },
+    { key: 'vidro', aliases: ['vidro'], label: 'Vidro', color: colors.success },
+    { key: 'metal', aliases: ['metal'], label: 'Metal', color: colors.warning },
   ] as const;
+  const values = volumeData.flatMap((item) => series.map((serie) => volumeValue(item, serie.aliases)));
+  const max = Math.max(1, Math.ceil(Math.max(...values, 0) / 100) * 100);
   const seriesCount = series.length;
   const plotLeft = 46;
   const plotRight = 580;
@@ -31,46 +32,84 @@ export function VolumeChart({ volumeData }: { volumeData: VolumeItem[] }) {
     <Card style={styles.chartCard}>
       <Text style={styles.cardTitle}>Volume Mensal por Material</Text>
       <Text style={styles.cardSubtitle}>Quantidade de materiais processados nos últimos 5 meses (kg)</Text>
-      <Svg viewBox={`0 0 ${width} ${height}`} style={styles.svg}>
-        {[0, 1, 2, 3].map((line) => (
-          <Path key={line} d={`M${plotLeft} ${35 + line * 45} H${plotRight}`} stroke={colors.border} strokeWidth={1} opacity={0.8} />
-        ))}
-        {volumeData.map((item, index) => {
-          const groupCenter = firstGroupCenter + index * groupStep;
-          const x = groupCenter - groupWidth / 2;
-          return (
-            <G key={item.mes}>
-              {series.map((serie, serieIndex) => {
-                const value = item[serie.key];
-                const barHeight = (value / max) * 150;
-                return (
-                  <Rect
-                    key={serie.key}
-                    x={x + serieIndex * (barWidth + barGap)}
-                    y={baseY - barHeight}
-                    width={barWidth}
-                    height={barHeight}
-                    rx={4}
-                    fill={serie.color}
-                    opacity={0.82}
-                  />
-                );
-              })}
-              <SvgText
-                fill={colors.muted}
-                fontFamily={fontFamily}
-                fontSize={12}
-                fontWeight="800"
-                textAnchor="middle"
-                x={groupCenter}
-                y={222}
-              >
-                {item.mes}
-              </SvgText>
-            </G>
-          );
-        })}
-      </Svg>
+      {volumeData.length ? (
+        <Svg viewBox={`0 0 ${width} ${height}`} style={styles.svg}>
+          {[0, 1, 2, 3].map((line) => {
+            const y = 35 + line * 45;
+            const value = max - (max / 3) * line;
+            return (
+              <G key={line}>
+                <SvgText
+                  fill={colors.muted}
+                  fontFamily={fontFamily}
+                  fontSize={10}
+                  fontWeight="800"
+                  textAnchor="end"
+                  x={plotLeft - 10}
+                  y={y + 4}
+                >
+                  {compactKg(value)}
+                </SvgText>
+                <Path d={`M${plotLeft} ${y} H${plotRight}`} stroke={colors.border} strokeWidth={1} opacity={0.8} />
+              </G>
+            );
+          })}
+          {volumeData.map((item, index) => {
+            const groupCenter = firstGroupCenter + index * groupStep;
+            const x = groupCenter - groupWidth / 2;
+            return (
+              <G key={item.mes}>
+                {series.map((serie, serieIndex) => {
+                  const value = volumeValue(item, serie.aliases);
+                  const barHeight = Math.max(2, (value / max) * 150);
+                  const barX = x + serieIndex * (barWidth + barGap);
+                  return (
+                    <G key={serie.key}>
+                      <Rect
+                        x={barX}
+                        y={baseY - barHeight}
+                        width={barWidth}
+                        height={barHeight}
+                        rx={4}
+                        fill={serie.color}
+                        opacity={0.82}
+                      />
+                      {value ? (
+                        <SvgText
+                          fill={colors.text}
+                          fontFamily={fontFamily}
+                          fontSize={9}
+                          fontWeight="800"
+                          textAnchor="middle"
+                          x={barX + barWidth / 2}
+                          y={baseY - barHeight - 5}
+                        >
+                          {compactKg(value)}
+                        </SvgText>
+                      ) : null}
+                    </G>
+                  );
+                })}
+                <SvgText
+                  fill={colors.muted}
+                  fontFamily={fontFamily}
+                  fontSize={12}
+                  fontWeight="800"
+                  textAnchor="middle"
+                  x={groupCenter}
+                  y={222}
+                >
+                  {item.mes}
+                </SvgText>
+              </G>
+            );
+          })}
+        </Svg>
+      ) : (
+        <View style={styles.emptyChart}>
+          <Text style={styles.emptyText}>Nenhum volume mensal encontrado.</Text>
+        </View>
+      )}
       <View style={styles.legend}>
         {series.map((serie) => (
           <View key={serie.key} style={styles.legendItem}>
@@ -81,6 +120,21 @@ export function VolumeChart({ volumeData }: { volumeData: VolumeItem[] }) {
       </View>
     </Card>
   );
+}
+
+function volumeValue(item: VolumeItem, aliases: readonly string[]) {
+  const data = item as unknown as Record<string, unknown>;
+  const entry = Object.entries(data).find(([key]) => aliases.includes(normalizeKey(key)));
+  const value = Number(entry?.[1] ?? 0);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function normalizeKey(value: string) {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+function compactKg(value: number) {
+  return value >= 1000 ? `${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)}k` : String(value);
 }
 
 export function DistributionChart({ materialDistribution }: { materialDistribution: MaterialDistributionItem[] }) {
@@ -188,6 +242,16 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 12,
     textTransform: 'capitalize',
+  },
+  emptyChart: {
+    alignItems: 'center',
+    height: 230,
+    justifyContent: 'center',
+  },
+  emptyText: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '800',
   },
   donutWrap: {
     alignItems: 'center',

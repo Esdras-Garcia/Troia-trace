@@ -1,0 +1,823 @@
+# Funcionalidades do aplicativo mobile
+
+O aplicativo mobile seria voltado principalmente para **operadores, cooperativas, funcionários internos e equipes de campo**.
+
+## 1. Login e acesso por perfil
+
+* Login do operador, cooperativa ou funcionário interno.
+* Acesso limitado conforme o tipo de usuário.
+* Visualização apenas das tarefas/resíduos permitidos.
+* Controle de permissões por empresa, unidade ou cooperativa.
+
+---
+
+## 2. Leitura de QR Code
+
+* Bipe/leitura do QR Code do produto, lote ou resíduo.
+* Identificação automática do resíduo cadastrado.
+* Busca dos dados esperados no sistema.
+* Validação se o QR Code pertence à empresa correta.
+* Validação se o QR Code já foi usado ou conferido.
+* Validação se o resíduo está no status correto para conferência.
+
+---
+
+## 3. Conferência do resíduo
+
+* Exibição dos dados esperados do resíduo.
+* Registro dos dados reais encontrados.
+* Informar quantidade conferida.
+* Informar peso real.
+* Informar tipo de material.
+* Informar estado/conservação do resíduo.
+* Informar observações da conferência.
+* Comparação automática entre dados esperados e dados informados.
+
+---
+
+## 4. Registro de evidências
+
+* Tirar fotos do resíduo.
+* Anexar imagens da coleta/conferência.
+* Registrar comprovantes.
+* Registrar localização da conferência, se necessário.
+* Registrar data e hora automaticamente.
+* Registrar usuário responsável pela ação.
+
+---
+
+## 5. Validação automática
+
+* Validar se o peso está dentro da margem permitida.
+* Validar se a quantidade bate com o esperado.
+* Validar se o tipo de material está correto.
+* Validar se a cooperativa está autorizada.
+* Validar se as evidências obrigatórias foram anexadas.
+* Marcar a conferência como aprovada ou com divergência.
+
+---
+
+## 6. Atualização de status
+
+* Alterar status para **Conferido**.
+* Alterar status para **Conferência com divergência**.
+* Alterar status para **Rejeitado**, se houver problema grave.
+* Alterar status para **Destinado**, quando a entrega for registrada.
+* Registrar histórico de cada mudança de status.
+
+---
+
+## 7. Gestão da coleta
+
+* Visualizar resíduos atribuídos ao operador ou cooperativa.
+* Visualizar coletas pendentes.
+* Visualizar coletas em andamento.
+* Confirmar início da coleta.
+* Confirmar recebimento do resíduo.
+* Confirmar entrega ao destino final.
+* Registrar problemas durante a coleta.
+
+---
+
+## 8. Destinação do resíduo
+
+* Informar local de destino.
+* Informar cooperativa, indústria recicladora ou empresa receptora.
+* Confirmar quantidade destinada.
+* Confirmar peso destinado.
+* Anexar comprovante de recebimento.
+* Anexar documento de transporte, se houver.
+* Atualizar status para **Destinado**.
+
+---
+
+## 9. Envio de certificado
+
+* Anexar certificado de reciclagem.
+* Anexar certificado de destinação final.
+* Anexar comprovante de transformação do resíduo.
+* Vincular certificado ao QR Code, lote ou carga.
+* Atualizar status para **Certificado**, caso o usuário tenha permissão.
+
+---
+
+## 10. Operação offline ou instável
+
+* Permitir registrar conferências sem internet.
+* Salvar dados localmente no aparelho.
+* Sincronizar automaticamente quando a conexão voltar.
+* Marcar registros pendentes de sincronização.
+* Evitar duplicidade de conferências ao sincronizar.
+
+---
+
+## 11. Histórico do resíduo
+
+* Visualizar histórico de movimentações.
+* Ver quem conferiu.
+* Ver quando foi conferido.
+* Ver quem recebeu.
+* Ver para onde foi destinado.
+* Ver evidências anexadas.
+* Ver divergências registradas.
+
+---
+
+# Funcionalidades do web app
+
+O web app seria voltado principalmente para **empresa contratante, gerente de resíduos, gestores, administradores, auditores e equipe de implantação**.
+
+## 1. Painel administrativo da empresa
+
+* Cadastro da empresa contratante.
+* Cadastro de CNPJ, razão social e dados fiscais.
+* Cadastro de unidades/filiais.
+* Cadastro de setores internos.
+* Cadastro de responsáveis.
+* Configuração inicial do ambiente da empresa.
+
+---
+
+## 2. Gestão de usuários
+
+* Criar usuários internos.
+* Criar usuários para cooperativas.
+* Criar usuários para operadores.
+* Definir permissões por perfil.
+* Definir permissões por unidade.
+* Bloquear ou inativar usuários.
+* Controlar acesso de terceiros.
+
+---
+
+## 3. Gestão de perfis de acesso
+
+* Administrador da empresa.
+* Gerente de resíduos.
+* Supervisor operacional.
+* Operador interno.
+* Cooperativa.
+* Auditor.
+* Implantador.
+* Administrador da plataforma.
+
+---
+
+## 4. Cadastro de produtos e resíduos
+
+* Cadastrar produtos monitorados.
+* Cadastrar tipos de resíduos.
+* Cadastrar categorias de materiais.
+* Definir peso esperado.
+* Definir quantidade esperada.
+* Definir unidade de medida.
+* Definir origem do resíduo.
+* Definir destino esperado.
+* Definir se precisa de certificado.
+* Definir documentos obrigatórios.
+* Definir risco ambiental, se aplicável.
+
+---
+
+## 5. Templates de conferência
+
+* Criar modelo de dados esperados para cada tipo de resíduo.
+* Definir campos obrigatórios.
+* Definir margem de tolerância de peso.
+* Definir margem de tolerância de quantidade.
+* Definir evidências obrigatórias.
+* Definir se foto é obrigatória.
+* Definir se localização é obrigatória.
+* Definir regras para aprovação automática.
+* Definir regras para gerar divergência.
+
+---
+
+## 6. Geração e controle de QR Codes
+
+* Gerar QR Code individual.
+* Gerar QR Code por lote.
+* Gerar QR Code por carga.
+* Gerar QR Code por produto.
+* Imprimir QR Codes.
+* Baixar QR Codes em PDF ou imagem.
+* Vincular QR Code ao cadastro do resíduo.
+* Cancelar QR Code.
+* Reemitir QR Code.
+* Consultar histórico de uso do QR Code.
+
+---
+
+## 7. Gestão de cooperativas e terceiros
+
+* Cadastrar cooperativas.
+* Cadastrar empresas terceirizadas.
+* Informar CNPJ e razão social.
+* Anexar licenças ambientais.
+* Definir tipos de resíduos aceitos.
+* Definir área de atuação.
+* Definir validade dos documentos.
+* Homologar cooperativa.
+* Bloquear cooperativa não regularizada.
+* Acompanhar desempenho da cooperativa.
+
+---
+
+## 8. Gestão de operadores internos
+
+* Cadastrar funcionários responsáveis pela conferência.
+* Vincular funcionários a unidades.
+* Vincular funcionários a setores.
+* Definir permissões de operação.
+* Acompanhar produtividade dos operadores.
+* Ver histórico de conferências realizadas.
+
+---
+
+## 9. Gestão do fluxo dos resíduos
+
+* Visualizar resíduos cadastrados.
+* Visualizar resíduos aguardando conferência.
+* Visualizar resíduos conferidos.
+* Visualizar resíduos com divergência.
+* Visualizar resíduos aguardando destinação.
+* Visualizar resíduos destinados.
+* Visualizar resíduos aguardando certificação.
+* Visualizar resíduos certificados.
+* Cancelar ou rejeitar movimentações, quando necessário.
+
+---
+
+## 10. Tratamento de divergências
+
+* Visualizar divergências abertas.
+* Comparar dados esperados com dados informados.
+* Aprovar divergência manualmente.
+* Solicitar nova conferência.
+* Rejeitar conferência.
+* Corrigir informações permitidas.
+* Registrar justificativa da decisão.
+* Manter histórico da divergência.
+
+---
+
+## 11. Gestão de destinação
+
+* Registrar destino final do resíduo.
+* Informar empresa receptora.
+* Informar cooperativa responsável.
+* Informar data de saída.
+* Informar data de recebimento.
+* Informar quantidade enviada.
+* Informar quantidade recebida.
+* Anexar comprovantes.
+* Atualizar status para **Destinado**.
+
+---
+
+## 12. Gestão de certificados
+
+* Anexar certificado de reciclagem.
+* Anexar certificado de destinação final.
+* Anexar laudos ou documentos técnicos.
+* Vincular certificado a resíduo, lote ou carga.
+* Validar certificado enviado por cooperativa.
+* Aprovar ou rejeitar certificado.
+* Controlar resíduos certificados e pendentes.
+* Atualizar status para **Certificado**.
+
+---
+
+## 13. Dashboard gerencial
+
+* Total de resíduos cadastrados.
+* Total de resíduos conferidos.
+* Total de resíduos destinados.
+* Total de resíduos certificados.
+* Total de resíduos pendentes.
+* Total de resíduos com divergência.
+* Percentual de logística reversa concluída.
+* Volume destinado por período.
+* Volume destinado por tipo de material.
+* Ranking de cooperativas.
+* Resíduos pendentes de certificado.
+* Alertas de documentos vencidos.
+
+---
+
+## 14. Relatórios fiscais e ambientais
+
+* Relatório de rastreabilidade.
+* Relatório por período.
+* Relatório por unidade.
+* Relatório por tipo de resíduo.
+* Relatório por cooperativa.
+* Relatório de resíduos certificados.
+* Relatório de resíduos pendentes.
+* Relatório de divergências.
+* Relatório de destinação final.
+* Relatório comprobatório para fiscalização.
+* Exportação em PDF, Excel ou CSV.
+
+---
+
+## 15. Auditoria e histórico
+
+* Histórico completo de cada resíduo.
+* Histórico de status.
+* Histórico de alterações cadastrais.
+* Histórico de conferências.
+* Histórico de anexos.
+* Histórico de aprovações e rejeições.
+* Registro de usuário, data e hora em cada ação.
+* Trilha de auditoria para comprovação fiscal.
+
+---
+
+## 16. Gestão documental
+
+* Upload de documentos da empresa.
+* Upload de licenças ambientais.
+* Upload de certificados.
+* Upload de notas fiscais.
+* Upload de comprovantes de transporte.
+* Upload de contratos com cooperativas.
+* Controle de validade dos documentos.
+* Alertas de documentos vencidos ou próximos do vencimento.
+
+---
+
+## 17. Implantação e onboarding
+
+* Cadastro inicial do cliente.
+* Configuração guiada da empresa.
+* Checklist de implantação.
+* Treinamento do gerente de resíduos.
+* Cadastro inicial de resíduos e templates.
+* Cadastro inicial de cooperativas.
+* Validação do ambiente antes de iniciar operação.
+* Acompanhamento da implantação pela nossa equipe.
+
+---
+
+## 18. Configurações do sistema
+
+* Configurar tipos de resíduos.
+* Configurar categorias de materiais.
+* Configurar margens de tolerância.
+* Configurar campos obrigatórios.
+* Configurar regras de aprovação.
+* Configurar padrões de relatório.
+* Configurar permissões.
+* Configurar notificações.
+* Configurar unidades e setores.
+
+---
+
+## 19. Notificações e alertas
+
+* Alerta de resíduo aguardando conferência.
+* Alerta de divergência encontrada.
+* Alerta de resíduo aguardando destinação.
+* Alerta de certificado pendente.
+* Alerta de documento vencido.
+* Alerta de cooperativa com licença vencida.
+* Alerta de prazo fiscal próximo.
+* Notificação para gerente, operador ou cooperativa.
+
+---
+
+# Divisão resumida entre app mobile e web app
+
+| Área                 | Aplicativo mobile                       | Web app                                 |
+| -------------------- | --------------------------------------- | --------------------------------------- |
+| Uso principal        | Operação em campo                       | Gestão e controle                       |
+| Usuários principais  | Operadores, cooperativas e funcionários | Gerente, empresa, auditor e implantação |
+| QR Code              | Lê e registra conferência               | Gera, controla e consulta               |
+| Cadastro de resíduos | Consulta básica                         | Cadastro completo                       |
+| Conferência          | Executa                                 | Acompanha e aprova                      |
+| Divergências         | Registra                                | Analisa e decide                        |
+| Destinação           | Confirma e anexa evidências             | Gerencia e valida                       |
+| Certificação         | Pode anexar certificado                 | Valida e controla                       |
+| Relatórios           | Consulta limitada                       | Geração completa                        |
+| Auditoria            | Consulta do item                        | Histórico completo                      |
+
+---
+
+# Estrutura ideal do produto
+
+## Aplicativo mobile
+
+```text
+Operar → Bipar → Conferir → Registrar → Anexar → Atualizar status
+```
+
+## Web app
+
+```text
+Configurar → Gerenciar → Acompanhar → Validar → Certificar → Relatar
+```
+
+A divisão fica clara: o **mobile executa a operação física** e o **web app controla, valida e comprova a logística reversa**.
+
+---
+
+# Plano de implementação mobile
+
+Este plano é específico para a **área mobile** do projeto. O mobile e o dashboard web rodam no mesmo repositório e consomem a mesma API, mas devem ser tratados como experiências diferentes:
+
+* **Mobile:** aplicativo operacional de campo, usado por operador interno, cooperativa e equipe de coleta para ler QR Code, conferir resíduo, anexar evidências, atualizar status, registrar destinação e enviar certificado.
+* **Dashboard web:** painel gerencial e administrativo, usado para cadastros, homologações, configurações, auditoria, validações, relatórios PDF/Excel e acompanhamento consolidado.
+
+O dashboard web já concentra rotinas administrativas como CRUD de materiais, parceiros, certificados, relatórios e visão gerencial. A implementação abaixo deve criar a jornada equivalente **no mobile**, sem transformar a tela mobile em um dashboard.
+
+## 1. Separação de experiências no frontend
+
+Objetivo: manter mobile e dashboard no mesmo projeto Expo, mas com telas e navegação separadas.
+
+Implementar:
+
+* Criar uma tela operacional mobile, por exemplo `MobileOperationScreen`.
+* Manter `HomeScreen` como dashboard web/gerencial.
+* Após o login, decidir qual experiência carregar:
+  * web/dashboard para uso gerencial;
+  * mobile operacional para app nativo ou perfil operacional.
+* Reaproveitar `api/client.ts`, tema, componentes base e autenticação.
+* Evitar inserir fluxos de operação de campo dentro da tela do dashboard.
+
+Critério de aceite:
+
+* O usuário operacional entra no mobile e vê uma home de tarefas, não o dashboard gerencial.
+* O dashboard web continua funcionando sem depender das telas mobile.
+
+## 2. Autenticação, sessão e perfil no mobile
+
+Implementar:
+
+* Login usando `/api/auth/login`.
+* Persistência segura do token no aparelho.
+* Logout usando `/api/auth/logout`.
+* Carregamento do usuário autenticado, empresa, unidade, cooperativa e perfil.
+* Controle de permissões para:
+  * operador interno;
+  * cooperativa;
+  * funcionário interno;
+  * supervisor operacional, se existir.
+* Filtrar tarefas, resíduos e ações conforme perfil.
+
+Dependência do dashboard:
+
+* O dashboard web deve continuar responsável por cadastrar usuários, perfis, unidades, cooperativas e permissões.
+* O mobile apenas consome essas permissões.
+
+## 3. Home operacional mobile
+
+Substituir a visão gerencial por uma home de execução.
+
+Exibir:
+
+* Minhas tarefas.
+* Resíduos atribuídos.
+* Coletas pendentes.
+* Coletas em andamento.
+* Aguardando conferência.
+* Aguardando destinação.
+* Aguardando certificação.
+* Divergências registradas.
+* Indicador de conexão:
+  * online;
+  * offline;
+  * pendente de sincronização;
+  * erro de envio.
+
+Ações rápidas:
+
+* Bipar QR Code.
+* Registrar conferência.
+* Registrar coleta.
+* Registrar destinação.
+* Anexar evidência.
+* Enviar certificado.
+
+Critério de aceite:
+
+* Toda ação feita no mobile atualiza status, histórico e dados visíveis depois no dashboard web.
+
+## 4. Leitura de QR Code
+
+Implementar fluxo “Bipar QR Code”.
+
+Funcionalidades:
+
+* Abrir câmera no mobile.
+* Ler QR Code de produto, lote, carga ou resíduo.
+* Consultar a API pelo código lido.
+* Exibir os dados esperados:
+  * empresa;
+  * unidade;
+  * material;
+  * quantidade esperada;
+  * peso esperado;
+  * parceiro/cooperativa esperado;
+  * destino esperado;
+  * documentos obrigatórios;
+  * status atual;
+  * histórico resumido.
+* Validar:
+  * QR Code pertence à empresa correta;
+  * QR Code não foi cancelado;
+  * QR Code não foi usado indevidamente;
+  * item está no status correto;
+  * usuário tem permissão.
+
+Contratos necessários:
+
+* `GET /api/mobile/qrcodes/{code}`
+* `POST /api/mobile/qrcodes/{code}/scan`
+
+## 5. Conferência de resíduo
+
+Implementar tela de conferência vinculada ao QR Code ou tarefa.
+
+Campos:
+
+* Quantidade conferida.
+* Peso real.
+* Material real.
+* Estado/conservação.
+* Observações.
+* Responsável automático pelo usuário logado.
+* Data e hora automáticas.
+
+Validações:
+
+* Peso dentro da margem permitida.
+* Quantidade dentro da tolerância.
+* Material compatível com o esperado.
+* Parceiro autorizado.
+* Evidências obrigatórias anexadas.
+* Status compatível com a ação.
+
+Resultados possíveis:
+
+* `CONFERIDO`
+* `CONFERENCIA_COM_DIVERGENCIA`
+* `REJEITADO`, se permitido pelo perfil
+
+Integração:
+
+* O dashboard web configura templates, margens e campos obrigatórios.
+* O mobile executa a conferência e envia o resultado.
+
+## 6. Evidências e anexos no mobile
+
+Implementar captura real de evidências no app mobile.
+
+Funcionalidades:
+
+* Tirar foto usando câmera.
+* Selecionar imagem da galeria.
+* Anexar PDF/documento, quando aplicável.
+* Registrar comprovante de coleta, conferência, transporte, destinação ou certificado.
+* Salvar metadados:
+  * nome do arquivo;
+  * tipo MIME;
+  * tamanho;
+  * origem: câmera, galeria ou documento;
+  * usuário;
+  * data/hora;
+  * localização, se exigida;
+  * status/etapa vinculada.
+
+Persistência:
+
+* O anexo deve ser enviado para o backend e salvo no banco.
+* Para MVP, pode ser salvo como base64 no payload da comprovação.
+* Para produção, preferir tabela própria de anexos ou storage de arquivos com referência no banco.
+
+Contratos necessários:
+
+* `POST /api/mobile/comprovacoes/{id}/evidencias`
+* `GET /api/mobile/comprovacoes/{id}/evidencias`
+
+Critério de aceite:
+
+* Ao anexar documento ou imagem no mobile, fechar e reabrir o item deve mostrar a evidência persistida.
+* O dashboard web deve conseguir consultar a evidência no histórico/auditoria.
+
+## 7. Atualização de status no mobile
+
+Implementar máquina de estados operacional:
+
+* `AGUARDANDO_CONFERENCIA`
+* `EM_CONFERENCIA`
+* `CONFERIDO`
+* `CONFERENCIA_COM_DIVERGENCIA`
+* `REJEITADO`
+* `AGUARDANDO_DESTINACAO`
+* `DESTINADO`
+* `AGUARDANDO_CERTIFICACAO`
+* `CERTIFICADO`
+* `RELATORIO_GERADO`
+* `CANCELADO`, se permitido
+
+Ações mobile:
+
+* Iniciar conferência.
+* Conferir.
+* Registrar divergência.
+* Rejeitar, se permitido.
+* Liberar destinação.
+* Registrar destino.
+* Solicitar certificado.
+* Anexar certificado.
+* Certificar, se permitido.
+
+Cada ação deve registrar:
+
+* status anterior;
+* novo status;
+* usuário;
+* data/hora;
+* justificativa;
+* evidência/documento, se houver.
+
+## 8. Coletas
+
+Criar módulo mobile “Coletas”.
+
+Funcionalidades:
+
+* Listar coletas atribuídas ao usuário/cooperativa.
+* Ver pendentes e em andamento.
+* Confirmar início da coleta.
+* Confirmar recebimento.
+* Confirmar entrega.
+* Registrar problemas:
+  * material ausente;
+  * peso divergente;
+  * local errado;
+  * QR Code inválido;
+  * documento ausente;
+  * coleta recusada.
+
+Contratos necessários:
+
+* `GET /api/mobile/coletas`
+* `POST /api/mobile/coletas/{id}/iniciar`
+* `POST /api/mobile/coletas/{id}/receber`
+* `POST /api/mobile/coletas/{id}/entregar`
+* `POST /api/mobile/coletas/{id}/problemas`
+
+## 9. Destinação
+
+Criar fluxo mobile “Registrar Destinação”.
+
+Campos:
+
+* Local de destino.
+* Cooperativa, recicladora ou empresa receptora.
+* Quantidade destinada.
+* Peso destinado.
+* Documento de transporte.
+* Comprovante de recebimento.
+* Localização.
+* Data/hora automática.
+
+Resultado:
+
+* Atualizar para `DESTINADO`.
+* Registrar histórico e evidências.
+
+Contrato necessário:
+
+* `POST /api/mobile/comprovacoes/{id}/destinacao`
+
+## 10. Certificados no mobile
+
+O dashboard web possui a gestão administrativa de certificados. No mobile, o foco deve ser operacional: anexar e enviar certificado vinculado ao resíduo/lote/carga.
+
+Funcionalidades mobile:
+
+* Anexar certificado de reciclagem.
+* Anexar certificado de destinação final.
+* Anexar laudo ou comprovante de transformação.
+* Vincular certificado ao QR Code, lote, carga ou comprovação.
+* Informar código do certificado.
+* Informar material.
+* Informar data.
+* Enviar para `AGUARDANDO_CERTIFICACAO`.
+* Atualizar para `CERTIFICADO` apenas se o perfil tiver permissão.
+
+Contratos necessários:
+
+* `POST /api/mobile/comprovacoes/{id}/certificados`
+* `GET /api/mobile/comprovacoes/{id}/certificados`
+
+Integração com dashboard:
+
+* O dashboard web valida, aprova, rejeita, controla vencimentos e emite relatórios.
+* O mobile envia a evidência e registra o evento operacional.
+
+## 11. Operação offline
+
+Implementar antes de liberar uso em campo real.
+
+Funcionalidades:
+
+* Banco local no app para:
+  * tarefas;
+  * leituras de QR Code;
+  * conferências;
+  * evidências;
+  * coletas;
+  * destinações;
+  * certificados;
+  * fila de sincronização.
+* Salvar rascunho offline.
+* Marcar ação como pendente.
+* Sincronizar automaticamente quando a conexão voltar.
+* Usar idempotency key por ação para evitar duplicidade.
+* Resolver conflito por versão/status do servidor.
+* Bloquear ações offline que dependam de validação em tempo real, quando a regra não estiver em cache.
+
+Contratos necessários:
+
+* `GET /api/mobile/sync/bootstrap`
+* `POST /api/mobile/sync`
+
+## 12. Histórico operacional
+
+Criar tela mobile de detalhe do item.
+
+Exibir:
+
+* Dados do resíduo.
+* QR Code/lote/carga.
+* Status atual.
+* Histórico de movimentações.
+* Usuários responsáveis por cada etapa.
+* Evidências anexadas.
+* Divergências.
+* Destinação.
+* Certificados.
+* Pendências de sincronização.
+
+Diferença para dashboard:
+
+* Mobile mostra histórico operacional resumido para execução.
+* Dashboard mantém histórico completo para auditoria, fiscalização e relatórios.
+
+## 13. Backend/API mobile
+
+Endpoints mínimos para a área mobile:
+
+* `GET /api/mobile/me`
+* `GET /api/mobile/tasks`
+* `GET /api/mobile/qrcodes/{code}`
+* `POST /api/mobile/qrcodes/{code}/scan`
+* `GET /api/mobile/comprovacoes/{id}`
+* `POST /api/mobile/comprovacoes/{id}/conferencia`
+* `POST /api/mobile/comprovacoes/{id}/evidencias`
+* `POST /api/mobile/comprovacoes/{id}/status`
+* `GET /api/mobile/coletas`
+* `POST /api/mobile/coletas/{id}/iniciar`
+* `POST /api/mobile/coletas/{id}/receber`
+* `POST /api/mobile/coletas/{id}/entregar`
+* `POST /api/mobile/comprovacoes/{id}/destinacao`
+* `POST /api/mobile/comprovacoes/{id}/certificados`
+* `GET /api/mobile/comprovacoes/{id}/historico`
+* `GET /api/mobile/sync/bootstrap`
+* `POST /api/mobile/sync`
+
+Os endpoints administrativos já existentes do dashboard, como CRUD de materiais, parceiros, certificados e relatórios, não substituem esses contratos mobile. Eles podem compartilhar service/regras, mas devem expor respostas adequadas para operação em campo.
+
+## 14. Ordem recomendada de implementação
+
+1. Separar navegação mobile e dashboard no frontend.
+2. Criar `MobileOperationScreen` com home operacional.
+3. Persistir autenticação e carregar perfil/permissões.
+4. Implementar lista “Minhas tarefas”.
+5. Implementar leitura de QR Code.
+6. Criar detalhe do resíduo/comprovação.
+7. Implementar conferência com validações.
+8. Implementar anexos/evidências com câmera, galeria e documento.
+9. Persistir evidências no backend.
+10. Implementar atualização de status e histórico.
+11. Implementar fluxo de coletas.
+12. Implementar destinação.
+13. Implementar envio de certificado pelo mobile.
+14. Implementar operação offline e sincronização.
+15. Integrar eventos mobile ao dashboard web.
+16. Testar fluxo ponta a ponta: QR Code → conferência → evidência → destinação → certificado → dashboard/relatório.
+
+## 15. Critérios gerais de aceite
+
+* O mobile não abre a tela gerencial como experiência principal.
+* O operador consegue executar a operação física completa pelo mobile.
+* Toda ação mobile fica registrada no backend.
+* Toda evidência anexada no mobile é persistida no banco ou storage com referência no banco.
+* O dashboard web reflete status, histórico, evidências, divergências e certificados gerados pelo mobile.
+* O app suporta operação offline para rascunhos e fila de envio.
+* O sistema evita duplicidade em sincronização.
+* Relatórios e auditoria continuam responsabilidade do dashboard web.
